@@ -1,20 +1,23 @@
 import os
+import hmac
 import hashlib
 import secrets
+import time
+import json
 from io import BytesIO
 from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from azure.storage.blob import BlobServiceClient
-from azure.identity import DefaultAzureCredential
-
 from app.firebase import get_db
 
 
-def _get_blob_service() -> BlobServiceClient:
+def _get_blob_service():
     """Create a BlobServiceClient from account URL + DefaultAzureCredential."""
+    from azure.storage.blob import BlobServiceClient
+    from azure.identity import DefaultAzureCredential
+
     account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL", "")
     if not account_url:
         raise RuntimeError("AZURE_STORAGE_ACCOUNT_URL not configured in .env")
@@ -27,8 +30,9 @@ router = APIRouter()
 ADMIN_USERNAME = "md_admin"
 ADMIN_PASSWORD = "GarixMD@2026"
 
-# Simple token store (in production, use Redis / DB)
-_active_tokens: set[str] = set()
+# Secret key for signing tokens (stable across serverless invocations)
+_TOKEN_SECRET = os.getenv("ADMIN_TOKEN_SECRET", "garix-admin-secret-key-2026")
+_TOKEN_TTL = 24 * 60 * 60  # 24 hours
 
 
 class AdminLogin(BaseModel):
@@ -36,12 +40,38 @@ class AdminLogin(BaseModel):
     password: str
 
 
+def _create_token() -> str:
+    """Create a signed token that can be verified without server-side state."""
+    payload = f"{ADMIN_USERNAME}:{int(time.time())}"
+    sig = hmac.new(_TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}:{sig}"
+
+
+def _verify_token(token: str) -> bool:
+    """Verify a signed token."""
+    parts = token.rsplit(":", 1)
+    if len(parts) != 2:
+        return False
+    payload, sig = parts
+    expected_sig = hmac.new(_TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected_sig):
+        return False
+    # Check TTL
+    try:
+        ts = int(payload.split(":")[1])
+        if time.time() - ts > _TOKEN_TTL:
+            return False
+    except (IndexError, ValueError):
+        return False
+    return True
+
+
 def verify_admin_token(authorization: Optional[str] = Header(None)):
     """Dependency to verify admin bearer token."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
     token = authorization.split(" ", 1)[1]
-    if token not in _active_tokens:
+    if not _verify_token(token):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return token
 
@@ -51,15 +81,13 @@ async def admin_login(creds: AdminLogin):
     """Authenticate admin with hardcoded MD credentials."""
     if creds.username != ADMIN_USERNAME or creds.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = secrets.token_hex(32)
-    _active_tokens.add(token)
+    token = _create_token()
     return {"status": "ok", "token": token}
 
 
 @router.post("/admin/logout")
 async def admin_logout(token: str = Depends(verify_admin_token)):
-    """Invalidate the admin token."""
-    _active_tokens.discard(token)
+    """Invalidate the admin token (client should discard the token)."""
     return {"status": "ok"}
 
 
