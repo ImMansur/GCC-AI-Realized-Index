@@ -6,4 +6,3 @@ pydantic
 firebase-admin
 reportlab
 azure-storage-blob
-azure-identity

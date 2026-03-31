@@ -11,17 +11,21 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from azure.storage.blob import BlobServiceClient, ContentSettings
-from azure.identity import DefaultAzureCredential
-
 from app.firebase import get_db
 
 
-def _get_blob_service() -> BlobServiceClient:
-    """Create a BlobServiceClient from account URL + DefaultAzureCredential."""
+def _get_blob_service():
+    """Create a BlobServiceClient from SAS URL or account URL."""
+    from azure.storage.blob import BlobServiceClient
+
+    sas_url = os.getenv("AZURE_STORAGE_SAS_URL", "")
+    if sas_url:
+        return BlobServiceClient(account_url=sas_url)
+
     account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL", "")
     if not account_url:
-        raise RuntimeError("AZURE_STORAGE_ACCOUNT_URL not configured in .env")
+        raise RuntimeError("AZURE_STORAGE_SAS_URL or AZURE_STORAGE_ACCOUNT_URL not configured")
+    from azure.identity import DefaultAzureCredential
     credential = DefaultAzureCredential()
     return BlobServiceClient(account_url=account_url, credential=credential)
 
@@ -795,6 +799,8 @@ CONFIDENTIALITY NOTE: This email and any attachments are confidential and intend
 
 def _upload_to_blob(req: DiagnosticRequest, pdf_bytes: bytes) -> str:
     """Upload the PDF to Azure Blob Storage and return the blob name."""
+    from azure.storage.blob import ContentSettings
+
     container_name = os.getenv("BLOB_CONTAINER_NAME", "gcc-ai")
     blob_service = _get_blob_service()
     container_client = blob_service.get_container_client(container_name)
@@ -829,12 +835,18 @@ def _save_report_metadata(req: DiagnosticRequest, blob_name: str):
 
 @router.post("/diagnostic/request")
 async def request_diagnostic(req: DiagnosticRequest):
-    """Generate PDF report, upload to Azure Blob, save metadata, and email admin."""
+    """Generate PDF report, optionally upload to Azure Blob, save metadata, and email admin."""
     try:
         pdf_bytes = _build_pdf(req)
 
-        # Upload to blob and record in Firestore
-        blob_name = _upload_to_blob(req, pdf_bytes)
+        # Upload to blob if Azure is configured, otherwise skip
+        blob_name = ""
+        if os.getenv("AZURE_STORAGE_ACCOUNT_URL"):
+            try:
+                blob_name = _upload_to_blob(req, pdf_bytes)
+            except Exception:
+                blob_name = ""
+
         _save_report_metadata(req, blob_name)
 
         # Send email notification

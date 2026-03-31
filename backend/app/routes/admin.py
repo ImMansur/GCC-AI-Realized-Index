@@ -14,13 +14,17 @@ from app.firebase import get_db
 
 
 def _get_blob_service():
-    """Create a BlobServiceClient from account URL + DefaultAzureCredential."""
+    """Create a BlobServiceClient from SAS URL or account URL."""
     from azure.storage.blob import BlobServiceClient
-    from azure.identity import DefaultAzureCredential
+
+    sas_url = os.getenv("AZURE_STORAGE_SAS_URL", "")
+    if sas_url:
+        return BlobServiceClient(account_url=sas_url)
 
     account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL", "")
     if not account_url:
-        raise RuntimeError("AZURE_STORAGE_ACCOUNT_URL not configured in .env")
+        raise RuntimeError("AZURE_STORAGE_SAS_URL or AZURE_STORAGE_ACCOUNT_URL not configured")
+    from azure.identity import DefaultAzureCredential
     credential = DefaultAzureCredential()
     return BlobServiceClient(account_url=account_url, credential=credential)
 
