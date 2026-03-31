@@ -1,0 +1,10 @@
+﻿{
+  "name": "gcc-ai-realized-index",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --port 3001",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "cd frontend && npm install && cd ../backend && pip install -r requirements.txt"
+  }
+}

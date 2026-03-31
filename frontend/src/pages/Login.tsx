@@ -1,0 +1,134 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import AuthLayout from "@/components/AuthLayout";
+
+const Login = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"user" | "admin">("user");
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success("Signed in successfully!");
+      navigate("/designation");
+    } catch (error: any) {
+      const code = error?.code as string | undefined;
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        toast.error("Invalid email or password.");
+      } else if (code === "auth/too-many-requests") {
+        toast.error("Too many attempts. Please try again later.");
+      } else {
+        toast.error("Sign-in failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to access your GARIX assessment dashboard"
+    >
+      {/* Role toggle */}
+      <div className="flex rounded-lg border border-border/50 bg-white/[0.02] backdrop-blur-sm p-1 mb-6">
+        <button
+          type="button"
+          onClick={() => setRole("user")}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            role === "user"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          User Login
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/admin")}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            role === "admin"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Admin Login
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Email Address
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-11 bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/30"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Password
+            </Label>
+            <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
+              Forgot password?
+            </button>
+          </div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 pr-10 bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/30"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <Button type="submit" variant="ey" size="lg" className="w-full shimmer group" disabled={loading}>
+          {loading ? "Signing in…" : role === "admin" ? "Sign in as Admin" : "Sign in"}
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </Button>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-muted-foreground">
+        Don't have an account?{" "}
+        <Link to="/signup" className="font-medium text-primary hover:text-primary/80 transition-colors">
+          Create account
+        </Link>
+      </p>
+    </AuthLayout>
+  );
+};
+
+export default Login;
