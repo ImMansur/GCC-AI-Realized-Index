@@ -39,3 +39,47 @@ async def save_user_profile(profile: UserProfile):
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/users/{uid}/surveys")
+async def get_user_surveys(uid: str):
+    """Get all surveys submitted by a user, ordered by most recent first."""
+    try:
+        db = get_db()
+        surveys_ref = (
+            db.collection("users")
+            .document(uid)
+            .collection("surveys")
+            .order_by("submitted_at", direction="DESCENDING")
+        )
+        docs = surveys_ref.stream()
+        surveys = []
+        for doc in docs:
+            data = doc.to_dict()
+            data["survey_id"] = doc.id
+            surveys.append(data)
+        return {"surveys": surveys}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/users/{uid}/surveys/latest")
+async def get_latest_survey(uid: str):
+    """Get the most recent survey for a user."""
+    try:
+        db = get_db()
+        surveys_ref = (
+            db.collection("users")
+            .document(uid)
+            .collection("surveys")
+            .order_by("submitted_at", direction="DESCENDING")
+            .limit(1)
+        )
+        docs = list(surveys_ref.stream())
+        if not docs:
+            return {"survey": None}
+        data = docs[0].to_dict()
+        data["survey_id"] = docs[0].id
+        return {"survey": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Star, Shield, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Star, Shield, TrendingUp, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/firebase";
 import {
   Radar,
   RadarChart,
@@ -66,16 +68,81 @@ const DIMENSION_ICONS: Record<number, string> = {
 
 /* ── Component ── */
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { scores, insights, persona, role, answers } = (location.state || {}) as {
+  const stateData = (location.state || {}) as {
     scores?: Scores;
     insights?: Record<string, string[]>;
     persona?: string;
     role?: string;
     answers?: any[];
   };
+
+  const [scores, setScores] = useState<Scores | undefined>(stateData.scores);
+  const [insights, setInsights] = useState<Record<string, string[]> | undefined>(stateData.insights);
+  const [persona, setPersona] = useState<string | undefined>(stateData.persona);
+  const [role, setRole] = useState<string | undefined>(stateData.role);
+  const [answers, setAnswers] = useState<any[] | undefined>(stateData.answers);
+  const [loadingResults, setLoadingResults] = useState(!stateData.scores);
+
+  useEffect(() => {
+    // If we already have scores from navigation state, no need to fetch
+    if (stateData.scores) return;
+
+    const fetchLatest = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        // Wait for auth to initialize
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+          unsubscribe();
+          if (!user) {
+            navigate("/login");
+            return;
+          }
+          await loadLatestSurvey(user.uid);
+        });
+        return;
+      }
+      await loadLatestSurvey(uid);
+    };
+
+    const loadLatestSurvey = async (uid: string) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${uid}/surveys/latest`);
+        if (!res.ok) throw new Error("Failed to fetch results");
+        const data = await res.json();
+        if (data.survey) {
+          setScores(data.survey.scores);
+          setInsights(data.survey.insights);
+          setPersona(data.survey.persona);
+          setRole(data.survey.role);
+          setAnswers(data.survey.answers);
+        }
+      } catch {
+        // No results found
+      } finally {
+        setLoadingResults(false);
+      }
+    };
+
+    fetchLatest();
+  }, []);
+
+  if (loadingResults) {
+    return (
+      <div className="min-h-screen bg-mesh-gradient flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="orb orb-gold w-[350px] h-[350px] top-[5%] right-[-5%]" />
+        <div className="orb orb-blue w-[300px] h-[300px] bottom-[-5%] left=[-5%]" />
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Loading your results...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!scores) {
     return (
@@ -422,10 +489,10 @@ const Results = () => {
             variant="ghost"
             size="lg"
             className="text-muted-foreground hover:text-foreground group"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/designation")}
           >
-            <ArrowLeft className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
-            Back
+            <RotateCcw className="h-4 w-4 mr-1" />
+            Retake Assessment
           </Button>
           <Button
             variant="ey"

@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthLayout from "@/components/AuthLayout";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -22,8 +24,24 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       toast.success("Signed in successfully!");
+
+      // Check if user has past survey results
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${userCredential.user.uid}/surveys/latest`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.survey) {
+            // User has past results — go to results page
+            navigate("/results");
+            return;
+          }
+        }
+      } catch {
+        // If check fails, just go to designation
+      }
+
       navigate("/designation");
     } catch (error: any) {
       const code = error?.code as string | undefined;
