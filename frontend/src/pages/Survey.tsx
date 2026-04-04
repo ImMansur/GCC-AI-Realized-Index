@@ -10,11 +10,25 @@ interface OptionItem {
   description: string;
 }
 
+interface ShuffledOption extends OptionItem {
+  originalValue: number; // 1-5 maturity score
+}
+
 interface DimensionQuestion {
   dimension_id: number;
   dimension_name: string;
   question: string;
   options: OptionItem[];
+}
+
+/** Fisher-Yates shuffle (returns a new array) */
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -31,6 +45,7 @@ const Survey = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [marked, setMarked] = useState<Set<number>>(new Set());
+  const [shuffledOptionsMap, setShuffledOptionsMap] = useState<Record<number, ShuffledOption[]>>({});
 
   useEffect(() => {
     if (!persona || !role) {
@@ -49,6 +64,14 @@ const Survey = () => {
         if (!res.ok) throw new Error("Failed to generate questions");
         const data = await res.json();
         setQuestions(data.questions);
+        // Build a shuffled options map for each question
+        const sMap: Record<number, ShuffledOption[]> = {};
+        for (const q of data.questions as DimensionQuestion[]) {
+          sMap[q.dimension_id] = shuffleArray(
+            q.options.map((o, idx) => ({ ...o, originalValue: idx + 1 }))
+          );
+        }
+        setShuffledOptionsMap(sMap);
       } catch {
         toast.error("Failed to load questions. Please try again.");
         navigate("/designation");
@@ -276,16 +299,15 @@ const Survey = () => {
               </button>
             </div>
 
-            {/* Answer options */}
+            {/* Answer options (shuffled) */}
             <div className="space-y-3">
-              {currentQuestion.options.map((option, idx) => {
-                const value = idx + 1;
-                const isSelected = currentAnswer === value;
+              {(shuffledOptionsMap[currentQuestion.dimension_id] ?? []).map((option, idx) => {
+                const isSelected = currentAnswer === option.originalValue;
                 return (
                   <button
-                    key={value}
+                    key={option.originalValue}
                     type="button"
-                    onClick={() => handleSelect(value)}
+                    onClick={() => handleSelect(option.originalValue)}
                     className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-all duration-300 ${
                       isSelected
                         ? "border-primary bg-primary/5 shadow-[0_0_20px_-5px_hsl(var(--primary)/0.3)]"
@@ -299,7 +321,7 @@ const Survey = () => {
                           : "bg-muted/50 text-muted-foreground"
                       }`}
                     >
-                      {value}
+                      {String.fromCharCode(65 + idx)}
                     </div>
                     <div>
                       <p className={`text-sm font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
