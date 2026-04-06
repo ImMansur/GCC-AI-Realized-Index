@@ -26,7 +26,7 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
             <div className="h-8 w-8 rounded bg-primary flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
               <span className="text-sm font-extrabold text-primary-foreground tracking-tight">EY</span>
             </div>
-            <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index</span>
+            <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index (GARIX)</span>
           </Link>
         </div>
 
