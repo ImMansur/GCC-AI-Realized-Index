@@ -37,7 +37,7 @@ const Index = () => {
           <div className="h-8 w-8 rounded bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
             <span className="text-sm font-extrabold text-primary-foreground tracking-tight">EY</span>
           </div>
-          <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index(GARIX)</span>
+          <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index (GARIX)</span>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="hover:bg-white/5">Sign in</Button>

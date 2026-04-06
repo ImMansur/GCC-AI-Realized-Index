@@ -84,20 +84,7 @@ const Login = () => {
       subtitle="Sign in to access your GARIX assessment dashboard"
     >
       {/* Role toggle */}
-      <div className="flex rounded-lg border border-border/50 bg-white/[0.02] backdrop-blur-sm p-1 mb-6">
-        <button
-          type="button"
-          onClick={() => setRole("user")}
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-            role === "user"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Login
-        </button>
-       
-      </div>
+      
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
