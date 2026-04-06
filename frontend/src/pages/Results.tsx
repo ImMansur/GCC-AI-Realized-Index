@@ -187,12 +187,12 @@ const Results = () => {
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-            Indicative AI Readiness Score
+            Indicative AI Realization Score
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
             Based on your responses, here is your GARIX profile across all 9 dimensions.
-            These are indicative scores — the full EY GARIX diagnostic covers 63 questions
-            across 7 stakeholder profiles and 45 sub-dimensions.
+            These are preliminary scores — the full EY GARIX diagnostic covers 189 questions
+            across 7 stakeholder x 9 dimensions x 3 sub-dimensions per dimension
           </p>
         </div>
 
@@ -467,6 +467,15 @@ const Results = () => {
             </div>
           </div>
         </div>
+        {/* Industry trend insight */}
+<div className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-sm p-4 sm:p-6 mb-6">
+  <p className="text-sm text-muted-foreground leading-relaxed">
+    Industry trend shows many GCCs are progressing toward 
+    <span className="font-semibold text-primary"> Stage 3 — AI Scaled</span>, 
+    where organizations move beyond experimentation and begin scaling AI use cases 
+    across functions with stronger data and platform foundations.
+  </p>
+</div>
 
         {/* Contextual Callout */}
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 backdrop-blur-sm p-4 sm:p-6 mb-8">
@@ -482,6 +491,12 @@ const Results = () => {
               : ` You're ahead of the cohort median. Focus on scaling your strongest dimensions to move toward AI Native maturity.`}
           </p>
         </div>
+        {/* Guardrail explanation */}
+<div className="text-xs text-muted-foreground max-w-3xl mb-10">
+  These insights are generated using structured scoring logic aligned to the EY GARIX maturity framework.
+  Results are preliminary indicators of AI realization maturity and should be validated through deeper
+  diagnostic workshops and stakeholder alignment sessions.
+</div>
 
         {/* Footer Actions */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pb-8">

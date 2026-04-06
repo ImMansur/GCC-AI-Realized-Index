@@ -6,20 +6,18 @@ const dimensions = [
   { id: "D1", name: "Strategy", desc: "AI vision, executive mandate, multi-year investment roadmap", icon: "🎯" },
   { id: "D2", name: "Process", desc: "AI embedded in core workflows, human-AI teaming", icon: "⚙️" },
   { id: "D3", name: "Talent & Skills", desc: "Workforce AI fluency, ML engineering depth", icon: "🧠" },
-  { id: "D4", name: "Platform & Technology", desc: "Enterprise LLM platform, MLOps, cloud maturity", icon: "☁️" },
-  { id: "D5", name: "Organisation", desc: "AI CoE maturity, cross-functional squad model", icon: "🏢" },
+{ id: "D4", name: "Platform & Technology", desc: "Enterprise intelligence platform, operations framework, infrastructure scalability", icon: "☁️" },  { id: "D5", name: "Organisation", desc: "AI CoE maturity, cross-functional squad model", icon: "🏢" },
   { id: "D6", name: "Data", desc: "Data platform maturity, quality framework, ML-readiness", icon: "📊" },
   { id: "D7", name: "Performance & Value", desc: "AI ROI framework, KPI dashboard, value attribution", icon: "📈" },
-  { id: "D8", name: "Governance", desc: "AI ethics policy, model registry, regulatory compliance", icon: "🛡️" },
-  { id: "D9", name: "Risk Management", desc: "Model risk framework, incident response playbook", icon: "⚠️" },
+{ id: "D8", name: "Governance", desc: "AI ethics policy, approved AI models, regulatory compliance", icon: "🛡️" },  { id: "D9", name: "Risk Management", desc: "Model risk framework, incident response playbook", icon: "⚠️" },
 ];
 
 const stages = [
-  { level: "01", name: "AI Aware", range: "1.0–2.0", tag: "Pilots without programme", color: "text-muted-foreground" },
-  { level: "02", name: "AI Embedded", range: "2.0–3.0", tag: "Strategy exists, delivery doesn't", color: "text-muted-foreground" },
-  { level: "03", name: "AI Scaled", range: "3.0–4.0", tag: "Production at pace", color: "text-primary" },
-  { level: "04", name: "AI Native", range: "4.0–4.5", tag: "Agentic at core", color: "text-primary" },
-  { level: "05", name: "AI Realized", range: "4.5–5.0", tag: "AI product studio", color: "text-primary" },
+  { level: "01", name: "AI Aware", range: "1.0–2.0", tag: "AI limited to discussions", color: "text-muted-foreground" },
+  { level: "02", name: "AI Embedded", range: "2.0–3.0", tag: "Strategy exists; delivery limited to Pilots", color: "text-muted-foreground" },
+  { level: "03", name: "AI Scaled", range: "3.0–4.0", tag: "AI programmes with clear targets", color: "text-primary" },
+  { level: "04", name: "AI Native", range: "4.0–4.5", tag: "Self-improving Agentic at core", color: "text-primary" },
+  { level: "05", name: "AI Realized", range: "4.5–5.0", tag: "GCC as an Agentic hub", color: "text-primary" },
 ];
 
 const Index = () => {
@@ -39,7 +37,7 @@ const Index = () => {
           <div className="h-8 w-8 rounded bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
             <span className="text-sm font-extrabold text-primary-foreground tracking-tight">EY</span>
           </div>
-          <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index</span>
+          <span className="text-sm font-semibold text-foreground tracking-wide uppercase">GCC AI Realized Index(GARIX)</span>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="hover:bg-white/5">Sign in</Button>
@@ -48,30 +46,23 @@ const Index = () => {
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 px-6 py-16 max-w-4xl mx-auto text-center">
-        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <div className="inline-flex items-center gap-3 rounded-2xl border-2 border-primary/30 bg-primary/10 backdrop-blur-md px-7 py-3.5 mb-6 shadow-xl shadow-primary/10">
-            <Timer className="h-5 w-5 text-primary shrink-0" />
-            <span className="text-lg sm:text-xl font-extrabold text-primary">Complete in under 10 minutes</span>
-          </div>
+<section className="relative z-10 px-6 min-h-screen flex flex-col justify-center items-center max-w-4xl mx-auto text-center">        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          
         </div>
         <h1 className="text-5xl sm:text-7xl font-extrabold text-foreground leading-[1.08] mb-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          Benchmark your GCC's
-          <span className="text-ey-gradient text-glow block mt-2">AI maturity</span>
-        </h1>
+  Benchmark your GCC's
+  <span className="text-ey-gradient text-glow block mt-2">AI realization</span>
+</h1>
+<div className="inline-flex items-center rounded-2xl border-2 border-primary/30 bg-primary/10 backdrop-blur-md px-7 py-3.5 mb-6 shadow-xl shadow-primary/10">
+   <span className="text-lg sm:text-xl font-extrabold text-primary">
+      In under 10 minutes
+   </span>
+</div>
+
         <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed animate-fade-in" style={{ animationDelay: '0.35s' }}>
           A 9-dimension diagnostic that scores your GCC against the GARIX maturity framework and benchmarks you against India's leading GCCs.
         </p>
-        <div className="flex justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.45s' }}>
-          <Button variant="ey" size="lg" onClick={() => navigate("/signup")} className="pulse-ring shimmer group">
-            Start Assessment
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-          <Button variant="outline" size="lg" onClick={() => navigate("/login")} className="border-border/50 backdrop-blur-sm hover:bg-white/5 group">
-            Sign in
-            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Button>
-        </div>
+       
 
         {/* Stats */}
         <div className="flex justify-center gap-10 sm:gap-16 mt-14 animate-fade-in" style={{ animationDelay: '0.55s' }}>
@@ -132,7 +123,7 @@ const Index = () => {
           </div>
           <h2 className="text-3xl font-bold text-foreground mb-3">Maturity Stages</h2>
           <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-            From scattered AI pilots to a fully AI-native operating model.
+            From scattered AI pilots to a fully AI-realized operating model.
           </p>
         </div>
         <div className="space-y-3 stagger-children">
@@ -169,8 +160,8 @@ const Index = () => {
             <Sparkles className="h-8 w-8 text-primary mx-auto mb-4 opacity-60" />
             <h2 className="text-3xl font-bold text-foreground mb-3">Ready to benchmark your GCC?</h2>
             <p className="text-muted-foreground text-sm mb-8 max-w-md mx-auto">
-              Complete the lite assessment in under 10 minutes and get your indicative AI readiness score with peer benchmarks.
-            </p>
+  Complete a rapid assessment in under 10 minutes and get your AI realization score.
+</p>
             <Button variant="ey" size="lg" onClick={() => navigate("/signup")} className="shimmer group">
               Start the Assessment
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />

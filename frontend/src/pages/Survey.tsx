@@ -224,8 +224,8 @@ const Survey = () => {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              Question {currentIndex + 1} of {totalQuestions}
-            </span>
+  {currentQuestion?.dimension_name} — Question {currentIndex + 1} of {totalQuestions}
+</span>
             <span className="text-xs text-muted-foreground">
               {Math.round(progress)}% complete
             </span>

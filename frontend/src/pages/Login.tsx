@@ -37,11 +37,11 @@ const Login = () => {
           },
         });
         if (verifyRes.ok) {
-          // This is an admin account — reject from user login
-          await auth.signOut();
-          toast.error("Admin accounts must use the admin login.");
-          return;
-        }
+   // user is admin → send to admin dashboard
+   toast.success("Admin login successful");
+   navigate("/admin/dashboard");
+   return;
+}
       } catch {
         // verify failed = not admin, proceed normally
       }
@@ -94,19 +94,9 @@ const Login = () => {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          User Login
+          Login
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("/admin")}
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-            role === "admin"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Admin Login
-        </button>
+       
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">

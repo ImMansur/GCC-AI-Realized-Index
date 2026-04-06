@@ -53,14 +53,7 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
             ))}
           </div>
 
-          {/* Decorative feature pills */}
-          <div className="flex flex-wrap gap-2 pt-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            {["AI Strategy", "MLOps", "Governance", "Talent"].map((tag) => (
-              <span key={tag} className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 border border-border/50 rounded-full px-3 py-1 bg-white/[0.02]">
-                {tag}
-              </span>
-            ))}
-          </div>
+          
         </div>
 
         <div className="relative z-10 text-xs text-muted-foreground flex items-center gap-2">

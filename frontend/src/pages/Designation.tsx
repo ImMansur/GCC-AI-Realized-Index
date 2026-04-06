@@ -14,7 +14,7 @@ const PERSONAS = [
     id: "tech-leadership",
     title: "Technology Leadership",
     icon: Settings,
-    roles: ["CTO/VP Engineering", "Head of IT"],
+    roles: ["CIO","CTO/VP Engineering", "Head of IT"],
   },
   {
     id: "data-leadership",
@@ -38,7 +38,7 @@ const PERSONAS = [
     id: "function-business-leaders",
     title: "Function / Business Leaders",
     icon: BarChart3,
-    roles: ["Head of Finance Ops", "Head of Risk", "Operations Lead"],
+    roles: ["Head of Finance Ops", "Operations Lead", "Head of Procurement & Supply Chain"],
   },
   {
     id: "risk-legal-compliance",
