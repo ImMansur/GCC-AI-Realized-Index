@@ -1,8 +1,5 @@
 import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
+import base64
 from io import BytesIO
 from datetime import datetime, timezone
 
@@ -598,18 +595,18 @@ def _section_heading(text: str):
 
 
 def _send_email(req: DiagnosticRequest, pdf_bytes: bytes):
-    """Send the diagnostic PDF to admin via SMTP."""
-    smtp_email = os.getenv("SMTP_EMAIL", "")
-    smtp_password = os.getenv("SMTP_PASSWORD", "")
-    admin_email = os.getenv("ADMIN_EMAIL", smtp_email)
+    """Send the diagnostic PDF to admin via Azure Communication Services."""
+    from azure.communication.email import EmailClient
 
-    if not smtp_email or not smtp_password:
-        raise RuntimeError("SMTP credentials not configured")
+    connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING", "")
+    if not connection_string:
+        raise RuntimeError("AZURE_COMMUNICATION_CONNECTION_STRING not configured")
 
-    msg = MIMEMultipart("alternative")
-    msg["From"] = f"EY GARIX Platform <{smtp_email}>"
-    msg["To"] = admin_email
-    msg["Subject"] = f"[Action Required] Full Diagnostic Request — {req.user_name} | {req.persona}"
+    client = EmailClient.from_connection_string(connection_string)
+    admin_email = "immansurjavid@gmail.com"
+
+    sender = "DoNotReply@d807c9f2-5ac4-48ae-b2fe-23c1ce765976.azurecomm.net"
+    subject = f"[Action Required] Full Diagnostic Request — {req.user_name} | {req.persona}"
 
     stage = _get_stage(req.composite_score)
     date_str = datetime.now(timezone.utc).strftime("%d %B %Y")
@@ -779,22 +776,30 @@ CONFIDENTIALITY NOTE: This email and any attachments are confidential and intend
 </html>
 """
 
-    msg.attach(MIMEText(plain_body, "plain"))
-    msg.attach(MIMEText(html_body, "html"))
-
-    # Attach PDF
     safe_name = req.user_name.replace(" ", "_")
-    attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
-    attachment.add_header(
-        "Content-Disposition", "attachment",
-        filename=f"GARIX_Report_{safe_name}.pdf",
-    )
-    msg.attach(attachment)
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(smtp_email, smtp_password)
-        server.send_message(msg)
+    message = {
+        "senderAddress": sender,
+        "recipients": {
+            "to": [{"address": admin_email}],
+        },
+        "content": {
+            "subject": subject,
+            "plainText": plain_body,
+            "html": html_body,
+        },
+        "attachments": [
+            {
+                "name": f"GARIX_Report_{safe_name}.pdf",
+                "contentType": "application/pdf",
+                "contentInBase64": pdf_b64,
+            }
+        ],
+    }
+
+    poller = client.begin_send(message)
+    poller.result()
 
 
 def _upload_to_blob(req: DiagnosticRequest, pdf_bytes: bytes) -> str:

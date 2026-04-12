@@ -7,3 +7,4 @@ firebase-admin
 reportlab
 azure-storage-blob
 azure-identity
+azure-communication-email

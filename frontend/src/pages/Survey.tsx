@@ -278,7 +278,7 @@ const Survey = () => {
         </div>
 
         {/* Dimension list */}
-        <nav className="flex-1 overflow-y-auto px-2">
+        <nav className="flex-1 overflow-y-auto px-2 pt-1">
           {dimensionGroups.map((group) => {
             const groupHasActive = group.items.some((item) => item.idx === currentIndex);
             const answeredInGroup = group.items.filter(({ q }) => answers[q.dimension_id] !== undefined).length;
