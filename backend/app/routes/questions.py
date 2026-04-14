@@ -65,7 +65,6 @@ class QuestionResponse(BaseModel):
 # Map roles that share a question set with another role
 ROLE_ALIASES = {
     "CIO": "CTO/VP Engineering",
-    "Head of Procurement & Supply Chain": "Operations Lead",
 }
 
 
