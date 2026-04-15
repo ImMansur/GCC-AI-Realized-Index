@@ -88,6 +88,24 @@ const Results = () => {
   const [answers, setAnswers] = useState<any[] | undefined>(stateData.answers);
   const [loadingResults, setLoadingResults] = useState(!stateData.scores);
 
+  const [radius, setRadius] = useState(45);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setRadius(35); // mobile
+      } else if (window.innerWidth < 1024) {
+        setRadius(40); // tablet
+      } else {
+        setRadius(45); // desktop
+      }
+    };
+
+    handleResize(); // run once
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     // If we already have scores from navigation state, no need to fetch
     if (stateData.scores) return;
@@ -206,11 +224,13 @@ const Results = () => {
               </h3>
               <div className="w-full aspect-square max-w-[380px] mx-auto">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={`${radius}%`}>
                     <PolarGrid stroke="hsl(var(--border))" strokeOpacity={0.3} />
                     <PolarAngleAxis
                       dataKey="dimension"
                       tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
                     />
                     <PolarRadiusAxis
                       angle={90}
@@ -415,11 +435,10 @@ const Results = () => {
               <span className="text-base sm:text-lg font-bold text-foreground">
                 {BENCHMARK.median.toFixed(1)}
               </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${
-                scores.composite_score >= BENCHMARK.median
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.median
                   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                   : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
-              }`}>
+                }`}>
                 {scores.composite_score >= BENCHMARK.median
                   ? `+${(scores.composite_score - BENCHMARK.median).toFixed(1)} ahead`
                   : `+${(BENCHMARK.median - scores.composite_score).toFixed(1)} ahead`}
@@ -435,11 +454,10 @@ const Results = () => {
               <span className="text-base sm:text-lg font-bold text-foreground">
                 {BENCHMARK.lagging_quartile.toFixed(1)}
               </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${
-                scores.composite_score >= BENCHMARK.lagging_quartile
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.lagging_quartile
                   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                   : "text-red-400 border-red-500/30 bg-red-500/10"
-              }`}>
+                }`}>
                 {scores.composite_score >= BENCHMARK.lagging_quartile
                   ? `+${(scores.composite_score - BENCHMARK.lagging_quartile).toFixed(1)} ahead`
                   : `-${(BENCHMARK.lagging_quartile - scores.composite_score).toFixed(1)} gap`}
@@ -455,11 +473,10 @@ const Results = () => {
               <span className="text-base sm:text-lg font-bold text-foreground">
                 {BENCHMARK.sector_average.toFixed(1)}
               </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${
-                scores.composite_score >= BENCHMARK.sector_average
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.sector_average
                   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                   : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
-              }`}>
+                }`}>
                 {scores.composite_score >= BENCHMARK.sector_average
                   ? `+${(scores.composite_score - BENCHMARK.sector_average).toFixed(1)} ahead`
                   : `+${(BENCHMARK.sector_average - scores.composite_score).toFixed(1)} ahead`}
@@ -468,14 +485,14 @@ const Results = () => {
           </div>
         </div>
         {/* Industry trend insight */}
-<div className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-sm p-4 sm:p-6 mb-6">
-  <p className="text-sm text-muted-foreground leading-relaxed">
-    Industry trend shows many GCCs are progressing toward 
-    <span className="font-semibold text-primary"> Stage 3 — AI Scaled</span>, 
-    where organizations move beyond experimentation and begin scaling AI use cases 
-    across functions with stronger data and platform foundations.
-  </p>
-</div>
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-sm p-4 sm:p-6 mb-6">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Industry trend shows many GCCs are progressing toward
+            <span className="font-semibold text-primary"> Stage 3 — AI Scaled</span>,
+            where organizations move beyond experimentation and begin scaling AI use cases
+            across functions with stronger data and platform foundations.
+          </p>
+        </div>
 
         {/* Contextual Callout */}
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 backdrop-blur-sm p-4 sm:p-6 mb-8">
@@ -492,11 +509,11 @@ const Results = () => {
           </p>
         </div>
         {/* Guardrail explanation */}
-<div className="text-xs text-muted-foreground max-w-3xl mb-10">
-  These insights are generated using structured scoring logic aligned to the EY GARIX maturity framework.
-  Results are preliminary indicators of AI realization maturity and should be validated through deeper
-  diagnostic workshops and stakeholder alignment sessions.
-</div>
+        <div className="text-xs text-muted-foreground max-w-3xl mb-10">
+          These insights are generated using structured scoring logic aligned to the EY GARIX maturity framework.
+          Results are preliminary indicators of AI realization maturity and should be validated through deeper
+          diagnostic workshops and stakeholder alignment sessions.
+        </div>
 
         {/* Footer Actions */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pb-8">

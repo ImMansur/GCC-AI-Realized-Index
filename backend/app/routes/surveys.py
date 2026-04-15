@@ -76,7 +76,7 @@ def compute_scores(answers: list[AnswerItem]) -> dict:
     }
 
 
-INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a personalized GARIX assessment report for a GCC leader.
+INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a GARIX assessment report for a GCC leader.
 
 Given the user's persona, role, and their scores across 9 GARIX dimensions (each scored 1-5), generate a concise insight for EACH dimension describing what their current maturity stage looks like in practice.
 
