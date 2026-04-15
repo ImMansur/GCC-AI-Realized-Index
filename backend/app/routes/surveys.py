@@ -76,43 +76,15 @@ def compute_scores(answers: list[AnswerItem]) -> dict:
     }
 
 
-INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a personalized GARIX assessment report for a GCC leader.
+INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a GARIX assessment report for a GCC leader.
 
 Given the user's persona, role, and their scores across 9 GARIX dimensions (each scored 1-5), generate a concise insight for EACH dimension describing what their current maturity stage looks like in practice.
 
-CRITICAL INTER-DIMENSION CONSISTENCY RULES (STRICT):
-
-You MUST ensure all dimension insights are logically consistent and reflect a single coherent maturity state. Contradictions are NOT allowed.
-
-Apply these enforced relationships:
-
-1. Strategy is the anchor:
-   - If Strategy score is high → Risk, Governance, Performance, Data MUST reflect maturity (no low-maturity signals)
-   - If Strategy is low → other dimensions cannot appear highly mature
-
-2. Risk Management:
-   - Must align with Strategy maturity (cannot be stronger than Strategy)
-   - Strong Strategy implies structured, proactive risk practices
-
-3. Performance & Value:
-   - Must align with BOTH Strategy and Data
-   - Cannot show strong value realization if Strategy/Data are weak
-
-4. Platform & Technology and Data:
-   - Must be at similar maturity levels
-   - No mismatch (e.g., advanced platform but poor data)
-
-5. Governance, Talent & Skills, Organization, Data:
-   - These must evolve together
-   - If one is weak, others cannot appear fully mature
-
-GLOBAL RULE:
-All 9 dimensions must read like they belong to the SAME organization at the SAME maturity stage.
-
-If scores differ:
-- Reflect differences as “emerging vs maturing”, NOT contradictions
-
-DO NOT produce any insight that contradicts another dimension.
+For each dimension, provide exactly 3 bullet points that:
+- Are specific to their score level and persona/role responsibilities
+- Describe observable behaviors, capabilities, or outcomes at their current stage
+- Use present tense, professional consulting language
+- Are concise (max 15 words each)
 
 Return a JSON object where keys are dimension IDs (as strings "1" through "9") and values are arrays of exactly 3 strings.
 

@@ -9,65 +9,95 @@ from app.routes.questions import get_client, get_deployment
 
 router = APIRouter()
 
-ROADMAP_PROMPT = """You are a senior AI transformation consultant at EY producing a personalized AI transformation roadmap for a GCC leader.
+ROADMAP_PROMPT = """You are a senior AI transformation consultant creating a 6-month roadmap for a GCC leader.
 
-Given the user's persona, role, current GARIX composite score and per-dimension scores, generate a concrete, actionable roadmap to advance to the next maturity stage.
+TASK:
+Generate a practical roadmap to move from current GARIX stage to the next stage.
 
-GARIX Maturity Stages:
-- Stage 1 (1–2): AI Aware
-- Stage 2 (2–3): AI Embedded
-- Stage 3 (3–4): AI Scaled
-- Stage 4 (4–4.5): AI Native
-- Stage 5 (4.5–5): AI Realized
+---
 
-Return a JSON object with EXACTLY this structure:
+CRITICAL RULE 1 — SCORE SENSITIVITY:
+
+- If a dimension score ≥ 4.5:
+  → Do NOT criticize or suggest foundational fixes
+  → Focus only on optimization, scaling, or acceleration
+
+- If a dimension score < 4:
+  → Focus on building foundational capabilities
+
+---
+
+CRITICAL RULE 2 — INTER-DIMENSION CONSISTENCY:
+
+Ensure roadmap actions are logically connected:
+
+- Strategy drives all improvements
+- Risk aligns with Strategy maturity
+- Performance & Value depends on Strategy and Data
+- Platform & Data must evolve together
+- Governance, Talent, Organization, Data must be coordinated
+
+Avoid isolated or conflicting actions.
+
+---
+
+CRITICAL RULE 3 — COHERENT TRANSFORMATION:
+
+- Actions must feel like one integrated plan
+- Sequence logically (foundation → scale → optimize)
+- Do not mix early-stage and advanced actions randomly
+
+---
+
+OUTPUT FORMAT:
 {
-  "target_score": <number — realistic 6-month target score, typically current + 1.0 to 1.7>,
-  "target_stage_name": "<stage name the target score falls into>",
+  "target_score": <number>,
+  "target_stage_name": "<stage>",
   "actions": [
     {
       "number": 1,
       "title": "<short action title, max 6 words>",
-      "description": "<2-3 sentence practical description>",
+      "description": "<2-3 sentence practical description of what to do and why it matters. Be specific to their persona/role.>",
       "timeline": "30-day action"
     },
     {
       "number": 2,
-      "title": "<short action title>",
-      "description": "<2-3 sentence description>",
+      "title": "<short title>",
+      "description": "<2-3 sentence action>",
       "timeline": "60-day action"
     },
     {
       "number": 3,
-      "title": "<short action title>",
-      "description": "<2-3 sentence description>",
+      "title": "<short title>",
+      "description": "<2-3 sentence action>",
       "timeline": "90-day action"
     }
   ],
   "journey": [
     {
       "months": "1-2",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "2-3",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "3-5",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "5-6",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     }
   ],
-  "projected_landing": "<1-2 sentence summary>"
+  "projected_landing": "<1-2 sentence summary of what executing this roadmap achieves. Reference the target score, target stage, and India GCC median of 2.6.>"
 }
+
 
 Requirements:
 - Actions should target weakest dimensions
