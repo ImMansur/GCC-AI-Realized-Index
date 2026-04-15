@@ -1,14 +1,18 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from concurrent.futures import ThreadPoolExecutor
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 
 from app.firebase import get_db
 from app.routes.questions import get_client, get_deployment
+from app.routes.roadmap import RoadmapRequest, DimensionScoreItem, generate_roadmap_data
+from app.routes.diagnostic import send_survey_completion_emails
 
 router = APIRouter()
+_executor = ThreadPoolExecutor(max_workers=2)
 
 # Strategy (id=1) and Risk Management (id=9) carry 1.5× weight
 DIMENSION_WEIGHTS = {
@@ -172,12 +176,32 @@ Generate 3 concise bullet points per dimension describing what this maturity sta
 
 
 @router.post("/survey/submit")
-async def submit_survey(submission: SurveySubmission):
+async def submit_survey(submission: SurveySubmission, background_tasks: BackgroundTasks):
     """Save completed survey responses and computed scores to Firestore."""
     try:
         db = get_db()
         scores = compute_scores(submission.answers)
-        insights = generate_insights(submission.persona, submission.role, scores)
+
+        # Run insights + roadmap generation in parallel (both are OpenAI calls)
+        insights_future = _executor.submit(
+            generate_insights, submission.persona, submission.role, scores
+        )
+        roadmap_future = _executor.submit(
+            generate_roadmap_data,
+            persona=submission.persona,
+            role=submission.role,
+            composite_score=scores["composite_score"],
+            dimensions=scores["dimensions"],
+            uid=submission.uid,
+        )
+
+        insights = insights_future.result()
+
+        roadmap = None
+        try:
+            roadmap = roadmap_future.result()
+        except Exception:
+            pass  # roadmap generation is best-effort
 
         survey_data = {
             "uid": submission.uid,
@@ -200,6 +224,49 @@ async def submit_survey(submission: SurveySubmission):
         # Also save a top-level copy for admin queries
         db.collection("surveys").add(survey_data)
 
-        return {"status": "ok", "survey_id": doc_ref.id, "scores": scores, "insights": insights}
+        # Send emails in background — user doesn't wait for this
+        answers_dump = [a.model_dump() for a in submission.answers]
+        background_tasks.add_task(
+            _send_completion_emails,
+            db=db,
+            uid=submission.uid,
+            persona=submission.persona,
+            role=submission.role,
+            scores=scores,
+            insights=insights,
+            roadmap=roadmap,
+            answers=answers_dump,
+        )
+
+        return {"status": "ok", "survey_id": doc_ref.id, "scores": scores, "insights": insights, "roadmap": roadmap}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _send_completion_emails(
+    db, uid: str, persona: str, role: str, scores: dict,
+    insights: dict, roadmap: dict | None, answers: list,
+):
+    """Background task: fetch user info and send emails."""
+    try:
+        user_doc = db.collection("users").document(uid).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        user_name = user_data.get("name", "Participant")
+        user_email = user_data.get("email", "")
+
+        if user_email:
+            send_survey_completion_emails(
+                user_name=user_name,
+                user_email=user_email,
+                persona=persona,
+                role=role,
+                composite_score=scores["composite_score"],
+                dimensions=scores["dimensions"],
+                insights=insights,
+                roadmap=roadmap,
+                answers=answers,
+            )
+    except Exception:
+        pass  # email is best-effort
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

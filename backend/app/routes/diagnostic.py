@@ -595,7 +595,7 @@ def _section_heading(text: str):
 
 
 def _send_email(req: DiagnosticRequest, pdf_bytes: bytes):
-    """Send the diagnostic PDF to admin via Azure Communication Services."""
+    """Send acknowledgement to user and notification to admin for diagnostic request."""
     from azure.communication.email import EmailClient
 
     connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING", "")
@@ -604,52 +604,44 @@ def _send_email(req: DiagnosticRequest, pdf_bytes: bytes):
 
     client = EmailClient.from_connection_string(connection_string)
     admin_email = "immansurjavid@gmail.com"
-
     sender = "DoNotReply@d807c9f2-5ac4-48ae-b2fe-23c1ce765976.azurecomm.net"
-    subject = f"[Action Required] Full Diagnostic Request — {req.user_name} | {req.persona}"
 
     stage = _get_stage(req.composite_score)
     date_str = datetime.now(timezone.utc).strftime("%d %B %Y")
 
-    # Plain text fallback
-    plain_body = f"""EY GCC AI Realized Index — Full Diagnostic Request
+    # ── USER ACKNOWLEDGEMENT EMAIL ──
+    user_subject = "We've received your Full Diagnostic request"
+    user_plain = f"""EY GCC AI Realized Index — Diagnostic Request Received
 {"=" * 55}
 
 Date: {date_str}
 
-Dear MD,
+Dear {req.user_name},
 
-A participant has completed the GARIX AI Maturity Assessment and has requested a full 63-question diagnostic engagement.
+Thank you for requesting the Full 63-Question Diagnostic Report.
 
-PARTICIPANT DETAILS
-  Name:      {req.user_name}
-  Email:     {req.user_email}
-  Persona:   {req.persona}
-  Role:      {req.role}
+Our team has received your request and will be in touch with you shortly to schedule your comprehensive diagnostic engagement.
 
-ASSESSMENT SUMMARY
+YOUR ASSESSMENT SNAPSHOT
   Composite Score:  {req.composite_score:.1f} / 5.0
   Maturity Stage:   {stage}
+  Persona:          {req.persona}
+  Role:             {req.role}
 
-The detailed assessment report is attached as a PDF.
+If you have any questions in the meantime, feel free to reply to this email.
 
 Best regards,
 EY GARIX Assessment Platform
 EY Global Consulting | AI & Digital Transformation
-
-CONFIDENTIALITY NOTE: This email and any attachments are confidential and intended solely for the addressee. If you have received this email in error, please notify the sender immediately and delete it.
 """
 
-    # HTML email body
-    html_body = f"""\
+    user_html = f"""\
 <html>
 <body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 0;">
     <tr>
       <td align="center">
         <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-          <!-- Header -->
           <tr>
             <td style="background-color:#1a1a2e;padding:24px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -663,64 +655,148 @@ CONFIDENTIALITY NOTE: This email and any attachments are confidential and intend
               </table>
             </td>
           </tr>
-
-          <!-- Yellow accent bar -->
           <tr><td style="background-color:#ffe600;height:4px;"></td></tr>
+          <tr>
+            <td style="padding:28px 32px 8px 32px;">
+              <h1 style="margin:0;font-size:20px;color:#1a1a2e;font-weight:600;">Request Received</h1>
+              <p style="margin:6px 0 0 0;font-size:13px;color:#888888;">Your full diagnostic request has been submitted successfully</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px 8px 32px;">
+              <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;">
+                Dear {req.user_name},<br><br>
+                Thank you for requesting the <strong>Full 63-Question Diagnostic Report</strong>. Our team has received your request and will be in touch with you shortly to schedule your comprehensive diagnostic engagement.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a2e;border-radius:6px;">
+                <tr>
+                  <td align="center" style="padding:20px;">
+                    <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;">Your GARIX Score</p>
+                    <p style="margin:8px 0 4px 0;font-size:36px;font-weight:bold;color:#ffe600;">{req.composite_score:.1f}<span style="font-size:16px;color:#999999;"> / 5.0</span></p>
+                    <p style="margin:0;font-size:13px;color:#cccccc;">{stage}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffde6;border-left:4px solid #ffe600;border-radius:2px;">
+                <tr>
+                  <td style="padding:12px 16px;font-size:13px;color:#666666;">
+                    Our consulting team will reach out to you to discuss next steps for your comprehensive 63-question AI maturity diagnostic.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #eeeeee;">
+              <p style="margin:0;font-size:12px;color:#999999;line-height:1.5;">
+                Best regards,<br>
+                <strong style="color:#1a1a2e;">EY GARIX Assessment Platform</strong><br>
+                EY Global Consulting &nbsp;|&nbsp; AI &amp; Digital Transformation
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f5f5f5;padding:16px 32px;">
+              <p style="margin:0;font-size:10px;color:#aaaaaa;line-height:1.4;">
+                <strong>Confidentiality Notice:</strong> This email and any attachments are confidential and intended solely for the use of the addressee.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
 
-          <!-- Subject line -->
+    # ── ADMIN NOTIFICATION EMAIL ──
+    admin_subject = f"[Action Required] Full Diagnostic Request — {req.user_name} | {req.persona}"
+    admin_plain = f"""EY GCC AI Realized Index — Full Diagnostic Request
+{"=" * 55}
+
+Date: {date_str}
+
+Dear MD,
+
+A participant has requested the full 63-question diagnostic engagement.
+
+PARTICIPANT DETAILS
+  Name:      {req.user_name}
+  Email:     {req.user_email}
+  Persona:   {req.persona}
+  Role:      {req.role}
+
+ASSESSMENT SUMMARY
+  Composite Score:  {req.composite_score:.1f} / 5.0
+  Maturity Stage:   {stage}
+
+Please reach out to the participant to schedule the comprehensive diagnostic.
+
+Best regards,
+EY GARIX Assessment Platform
+"""
+
+    admin_html = f"""\
+<html>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 0;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1a1a2e;padding:24px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="font-size:20px;font-weight:bold;color:#ffe600;">EY</span>
+                    <span style="font-size:16px;color:#ffffff;margin-left:8px;">GCC AI Realized Index</span>
+                  </td>
+                  <td align="right" style="color:#999999;font-size:12px;">{date_str}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr><td style="background-color:#ffe600;height:4px;"></td></tr>
           <tr>
             <td style="padding:28px 32px 8px 32px;">
               <h1 style="margin:0;font-size:20px;color:#1a1a2e;font-weight:600;">Full Diagnostic Request</h1>
-              <p style="margin:6px 0 0 0;font-size:13px;color:#888888;">A participant has requested a comprehensive 63-question diagnostic engagement</p>
+              <p style="margin:6px 0 0 0;font-size:13px;color:#888888;">A participant is requesting the comprehensive 63-question diagnostic</p>
             </td>
           </tr>
-
-          <!-- Greeting -->
           <tr>
             <td style="padding:16px 32px 8px 32px;">
               <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;">
                 Dear MD,<br><br>
-                <strong>{req.user_name}</strong> has completed the GARIX AI Maturity Assessment and is requesting a full diagnostic review. Please find the participant details and assessment summary below.
+                <strong>{req.user_name}</strong> has requested a full diagnostic review. Please reach out to schedule the engagement.
               </p>
             </td>
           </tr>
-
-          <!-- Participant Details Card -->
           <tr>
             <td style="padding:16px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9f9;border-radius:6px;border:1px solid #eeeeee;">
-                <tr>
-                  <td style="padding:16px 20px 8px 20px;">
-                    <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;font-weight:600;">Participant Details</p>
-                  </td>
-                </tr>
+                <tr><td style="padding:16px 20px 8px 20px;"><p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;font-weight:600;">Participant Details</p></td></tr>
                 <tr>
                   <td style="padding:4px 20px 16px 20px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td width="50%" style="padding:4px 0;font-size:13px;color:#666666;">Name</td>
-                        <td width="50%" style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{req.user_name}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;font-size:13px;color:#666666;">Email</td>
-                        <td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{req.user_email}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;font-size:13px;color:#666666;">Industry Persona</td>
-                        <td style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{req.persona}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;font-size:13px;color:#666666;">Role</td>
-                        <td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{req.role}</td>
-                      </tr>
+                      <tr><td width="50%" style="padding:4px 0;font-size:13px;color:#666666;">Name</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{req.user_name}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Email</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{req.user_email}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Persona</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{req.persona}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Role</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{req.role}</td></tr>
                     </table>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-
-          <!-- Score highlight -->
           <tr>
             <td style="padding:8px 32px 16px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a2e;border-radius:6px;">
@@ -734,40 +810,13 @@ CONFIDENTIALITY NOTE: This email and any attachments are confidential and intend
               </table>
             </td>
           </tr>
-
-          <!-- Attachment note -->
-          <tr>
-            <td style="padding:16px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffde6;border-left:4px solid #ffe600;border-radius:2px;">
-                <tr>
-                  <td style="padding:12px 16px;font-size:13px;color:#666666;">
-                    📎 The detailed GARIX assessment report is attached as a PDF, including dimension-level insights and the personalized AI transformation roadmap.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #eeeeee;">
               <p style="margin:0;font-size:12px;color:#999999;line-height:1.5;">
-                Best regards,<br>
-                <strong style="color:#1a1a2e;">EY GARIX Assessment Platform</strong><br>
-                EY Global Consulting &nbsp;|&nbsp; AI &amp; Digital Transformation
+                Best regards,<br><strong style="color:#1a1a2e;">EY GARIX Assessment Platform</strong>
               </p>
             </td>
           </tr>
-
-          <!-- Confidentiality -->
-          <tr>
-            <td style="background-color:#f5f5f5;padding:16px 32px;">
-              <p style="margin:0;font-size:10px;color:#aaaaaa;line-height:1.4;">
-                <strong>Confidentiality Notice:</strong> This email and any attachments are confidential and intended solely for the use of the addressee. If you have received this email in error, please notify the sender immediately and delete all copies. Unauthorized use, disclosure, or distribution is strictly prohibited.
-              </p>
-            </td>
-          </tr>
-
         </table>
       </td>
     </tr>
@@ -776,30 +825,21 @@ CONFIDENTIALITY NOTE: This email and any attachments are confidential and intend
 </html>
 """
 
-    safe_name = req.user_name.replace(" ", "_")
-    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-
-    message = {
+    # Send acknowledgement to user
+    user_message = {
         "senderAddress": sender,
-        "recipients": {
-            "to": [{"address": admin_email}],
-        },
-        "content": {
-            "subject": subject,
-            "plainText": plain_body,
-            "html": html_body,
-        },
-        "attachments": [
-            {
-                "name": f"GARIX_Report_{safe_name}.pdf",
-                "contentType": "application/pdf",
-                "contentInBase64": pdf_b64,
-            }
-        ],
+        "recipients": {"to": [{"address": req.user_email}]},
+        "content": {"subject": user_subject, "plainText": user_plain, "html": user_html},
     }
+    client.begin_send(user_message).result()
 
-    poller = client.begin_send(message)
-    poller.result()
+    # Send notification to admin
+    admin_message = {
+        "senderAddress": sender,
+        "recipients": {"to": [{"address": admin_email}]},
+        "content": {"subject": admin_subject, "plainText": admin_plain, "html": admin_html},
+    }
+    client.begin_send(admin_message).result()
 
 
 def _upload_to_blob(req: DiagnosticRequest, pdf_bytes: bytes) -> str:
@@ -838,24 +878,309 @@ def _save_report_metadata(req: DiagnosticRequest, blob_name: str):
     })
 
 
+def send_survey_completion_emails(
+    user_name: str,
+    user_email: str,
+    persona: str,
+    role: str,
+    composite_score: float,
+    dimensions: list,
+    insights: dict | None = None,
+    roadmap: dict | None = None,
+    answers: list | None = None,
+):
+    """Build the PDF report and email it to both the user and admin after survey completion."""
+    from azure.communication.email import EmailClient
+
+    connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING", "")
+    if not connection_string:
+        return  # silently skip if email not configured
+
+    # Convert raw dicts to Pydantic models expected by _build_pdf
+    dim_scores = [DimScore(**d) if isinstance(d, dict) else d for d in dimensions]
+    roadmap_data = None
+    if roadmap:
+        roadmap_data = RoadmapData(**roadmap) if isinstance(roadmap, dict) else roadmap
+    answer_details = None
+    if answers:
+        answer_details = [AnswerDetail(**a) if isinstance(a, dict) else a for a in answers]
+
+    req = DiagnosticRequest(
+        user_name=user_name,
+        user_email=user_email,
+        persona=persona,
+        role=role,
+        composite_score=composite_score,
+        dimensions=dim_scores,
+        insights=insights,
+        roadmap=roadmap_data,
+        answers=answer_details,
+    )
+
+    pdf_bytes = _build_pdf(req)
+
+    admin_email = "immansurjavid@gmail.com"
+    sender = "DoNotReply@d807c9f2-5ac4-48ae-b2fe-23c1ce765976.azurecomm.net"
+    stage = _get_stage(composite_score)
+    date_str = datetime.now(timezone.utc).strftime("%d %B %Y")
+    safe_name = user_name.replace(" ", "_")
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+
+    # ── Email to USER ──
+    user_subject = f"Your GARIX Assessment Report — {stage}"
+    user_plain = f"""EY GCC AI Realized Index — Your Assessment Report
+{"=" * 50}
+
+Date: {date_str}
+
+Dear {user_name},
+
+Thank you for completing the GARIX AI Maturity Assessment!
+
+YOUR ASSESSMENT SUMMARY
+  Composite Score:  {composite_score:.1f} / 5.0
+  Maturity Stage:   {stage}
+  Persona:          {persona}
+  Role:             {role}
+
+Your detailed assessment report is attached as a PDF, including your dimension-level insights and personalized 6-month AI transformation roadmap.
+
+Best regards,
+EY GARIX Assessment Platform
+EY Global Consulting | AI & Digital Transformation
+"""
+
+    user_html = f"""\
+<html>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 0;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1a1a2e;padding:24px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="font-size:20px;font-weight:bold;color:#ffe600;">EY</span>
+                    <span style="font-size:16px;color:#ffffff;margin-left:8px;">GCC AI Realized Index</span>
+                  </td>
+                  <td align="right" style="color:#999999;font-size:12px;">{date_str}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr><td style="background-color:#ffe600;height:4px;"></td></tr>
+          <tr>
+            <td style="padding:28px 32px 8px 32px;">
+              <h1 style="margin:0;font-size:20px;color:#1a1a2e;font-weight:600;">Your GARIX Assessment Report</h1>
+              <p style="margin:6px 0 0 0;font-size:13px;color:#888888;">Thank you for completing the AI Maturity Assessment</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px 8px 32px;">
+              <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;">
+                Dear {user_name},<br><br>
+                Thank you for completing the GARIX AI Maturity Assessment. Your personalized report is ready.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a2e;border-radius:6px;">
+                <tr>
+                  <td align="center" style="padding:20px;">
+                    <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;">Composite GARIX Score</p>
+                    <p style="margin:8px 0 4px 0;font-size:36px;font-weight:bold;color:#ffe600;">{composite_score:.1f}<span style="font-size:16px;color:#999999;"> / 5.0</span></p>
+                    <p style="margin:0;font-size:13px;color:#cccccc;">{stage}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffde6;border-left:4px solid #ffe600;border-radius:2px;">
+                <tr>
+                  <td style="padding:12px 16px;font-size:13px;color:#666666;">
+                    📎 Your detailed GARIX assessment report is attached as a PDF, including dimension-level insights, benchmarks, and your personalized 6-month AI transformation roadmap.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #eeeeee;">
+              <p style="margin:0;font-size:12px;color:#999999;line-height:1.5;">
+                Best regards,<br>
+                <strong style="color:#1a1a2e;">EY GARIX Assessment Platform</strong><br>
+                EY Global Consulting &nbsp;|&nbsp; AI &amp; Digital Transformation
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f5f5f5;padding:16px 32px;">
+              <p style="margin:0;font-size:10px;color:#aaaaaa;line-height:1.4;">
+                <strong>Confidentiality Notice:</strong> This email and any attachments are confidential and intended solely for the use of the addressee.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+    # ── Email to ADMIN ──
+    admin_subject = f"[GARIX Completed] {user_name} | {persona} — Score {composite_score:.1f}"
+    admin_plain = f"""EY GCC AI Realized Index — Assessment Completed
+{"=" * 50}
+
+Date: {date_str}
+
+Dear Admin,
+
+{user_name} has completed the GARIX AI Maturity Assessment. Please find the participant details and assessment summary below.
+
+PARTICIPANT DETAILS
+  Name:      {user_name}
+  Email:     {user_email}
+  Persona:   {persona}
+  Role:      {role}
+
+ASSESSMENT SUMMARY
+  Composite Score:  {composite_score:.1f} / 5.0
+  Maturity Stage:   {stage}
+
+The detailed assessment report is attached as a PDF.
+
+Best regards,
+EY GARIX Assessment Platform
+"""
+
+    admin_html = f"""\
+<html>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 0;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1a1a2e;padding:24px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="font-size:20px;font-weight:bold;color:#ffe600;">EY</span>
+                    <span style="font-size:16px;color:#ffffff;margin-left:8px;">GCC AI Realized Index</span>
+                  </td>
+                  <td align="right" style="color:#999999;font-size:12px;">{date_str}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr><td style="background-color:#ffe600;height:4px;"></td></tr>
+          <tr>
+            <td style="padding:28px 32px 8px 32px;">
+              <h1 style="margin:0;font-size:20px;color:#1a1a2e;font-weight:600;">Assessment Completed</h1>
+              <p style="margin:6px 0 0 0;font-size:13px;color:#888888;">A participant has completed the GARIX AI Maturity Assessment</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px 8px 32px;">
+              <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;">
+                Dear Admin,<br><br>
+                <strong>{user_name}</strong> has completed the GARIX AI Maturity Assessment. Please find the participant details and assessment summary below.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9f9;border-radius:6px;border:1px solid #eeeeee;">
+                <tr><td style="padding:16px 20px 8px 20px;"><p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;font-weight:600;">Participant Details</p></td></tr>
+                <tr>
+                  <td style="padding:4px 20px 16px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr><td width="50%" style="padding:4px 0;font-size:13px;color:#666666;">Name</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{user_name}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Email</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{user_email}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Persona</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;font-weight:600;">{persona}</td></tr>
+                      <tr><td style="padding:4px 0;font-size:13px;color:#666666;">Role</td><td style="padding:4px 0;font-size:13px;color:#1a1a2e;">{role}</td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a2e;border-radius:6px;">
+                <tr>
+                  <td align="center" style="padding:20px;">
+                    <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999999;">Composite GARIX Score</p>
+                    <p style="margin:8px 0 4px 0;font-size:36px;font-weight:bold;color:#ffe600;">{composite_score:.1f}<span style="font-size:16px;color:#999999;"> / 5.0</span></p>
+                    <p style="margin:0;font-size:13px;color:#cccccc;">{stage}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffde6;border-left:4px solid #ffe600;border-radius:2px;">
+                <tr><td style="padding:12px 16px;font-size:13px;color:#666666;">📎 The detailed GARIX report is attached as a PDF.</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #eeeeee;">
+              <p style="margin:0;font-size:12px;color:#999999;line-height:1.5;">
+                Best regards,<br><strong style="color:#1a1a2e;">EY GARIX Assessment Platform</strong>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+    client = EmailClient.from_connection_string(connection_string)
+    attachment = {
+        "name": f"GARIX_Report_{safe_name}.pdf",
+        "contentType": "application/pdf",
+        "contentInBase64": pdf_b64,
+    }
+
+    # Send to user
+    user_message = {
+        "senderAddress": sender,
+        "recipients": {"to": [{"address": user_email}]},
+        "content": {"subject": user_subject, "plainText": user_plain, "html": user_html},
+        "attachments": [attachment],
+    }
+    client.begin_send(user_message).result()
+
+    # Send to admin
+    admin_message = {
+        "senderAddress": sender,
+        "recipients": {"to": [{"address": admin_email}]},
+        "content": {"subject": admin_subject, "plainText": admin_plain, "html": admin_html},
+        "attachments": [attachment],
+    }
+    client.begin_send(admin_message).result()
+
+
 @router.post("/diagnostic/request")
 async def request_diagnostic(req: DiagnosticRequest):
-    """Generate PDF report, optionally upload to Azure Blob, save metadata, and email admin."""
+    """Save diagnostic request metadata and send notification emails."""
     try:
-        pdf_bytes = _build_pdf(req)
+        _save_report_metadata(req, "")
 
-        # Upload to blob if Azure is configured, otherwise skip
-        blob_name = ""
-        if os.getenv("AZURE_STORAGE_ACCOUNT_URL"):
-            try:
-                blob_name = _upload_to_blob(req, pdf_bytes)
-            except Exception:
-                blob_name = ""
-
-        _save_report_metadata(req, blob_name)
-
-        # Send email notification
-        _send_email(req, pdf_bytes)
+        # Send acknowledgement to user + notification to admin
+        _send_email(req, b"")
 
         return {"status": "ok", "message": "Diagnostic request sent successfully"}
     except Exception as e:

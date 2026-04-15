@@ -182,7 +182,7 @@ const Survey = () => {
       if (!res.ok) throw new Error("Failed to submit");
       const data = await res.json();
       toast.success("Assessment submitted successfully!");
-      navigate("/results", { state: { scores: data.scores, insights: data.insights, persona, role, answers: answerItems } });
+      navigate("/results", { state: { scores: data.scores, insights: data.insights, persona, role, answers: answerItems, roadmap: data.roadmap || null } });
     } catch {
       toast.error("Failed to submit assessment. Please try again.");
       setSubmitting(false);

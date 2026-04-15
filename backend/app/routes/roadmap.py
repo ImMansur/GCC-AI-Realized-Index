@@ -155,34 +155,44 @@ class RoadmapRequest(BaseModel):
     uid: Optional[str] = None
 
 
-@router.post("/roadmap/generate")
-async def generate_roadmap(req: RoadmapRequest):
-    try:
-        dims_summary = "\n".join(
-            f"- {d.dimension_name} (ID {d.dimension_id}): Score {d.score}/5 (weight {d.weight}×)"
-            for d in req.dimensions
-        )
+def generate_roadmap_data(
+    persona: str,
+    role: str,
+    composite_score: float,
+    dimensions: list,
+    uid: str | None = None,
+    company: str = "",
+) -> dict | None:
+    """Generate a roadmap dict from raw parameters. Saves to Firestore and returns the roadmap JSON."""
+    dim_items = [
+        d if isinstance(d, DimensionScoreItem) else DimensionScoreItem(**d)
+        for d in dimensions
+    ]
+    dims_summary = "\n".join(
+        f"- {d.dimension_name} (ID {d.dimension_id}): Score {d.score}/5 (weight {d.weight}×)"
+        for d in dim_items
+    )
 
-        cs = req.composite_score
-        if cs < 2:
-            current_stage = "Stage 1 — AI Aware"
-        elif cs < 3:
-            current_stage = "Stage 2 — AI Embedded"
-        elif cs < 4:
-            current_stage = "Stage 3 — AI Scaled"
-        elif cs < 4.5:
-            current_stage = "Stage 4 — AI Native"
-        else:
-            current_stage = "Stage 5 — AI Realized"
+    cs = composite_score
+    if cs < 2:
+        current_stage = "Stage 1 — AI Aware"
+    elif cs < 3:
+        current_stage = "Stage 2 — AI Embedded"
+    elif cs < 4:
+        current_stage = "Stage 3 — AI Scaled"
+    elif cs < 4.5:
+        current_stage = "Stage 4 — AI Native"
+    else:
+        current_stage = "Stage 5 — AI Realized"
 
-        sorted_dims = sorted(req.dimensions, key=lambda d: d.score)
-        weakest = sorted_dims[:3]
-        strongest = sorted_dims[-2:]
+    sorted_dims = sorted(dim_items, key=lambda d: d.score)
+    weakest = sorted_dims[:3]
+    strongest = sorted_dims[-2:]
 
-        user_prompt = f"""Company/GCC: {req.company or 'India GCC'}
-Persona: {req.persona}
-Role: {req.role}
-Current Score: {req.composite_score}/5 ({current_stage})
+    user_prompt = f"""Company/GCC: {company or 'India GCC'}
+Persona: {persona}
+Role: {role}
+Current Score: {composite_score}/5 ({current_stage})
 
 Dimension Scores:
 {dims_summary}
@@ -192,34 +202,48 @@ Strongest: {', '.join(f'{d.dimension_name} ({d.score})' for d in strongest)}
 
 Generate roadmap."""
 
-        response = get_client().chat.completions.create(
-            model=get_deployment(),
-            messages=[
-                {"role": "system", "content": ROADMAP_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.7,
-            max_tokens=2000,
+    response = get_client().chat.completions.create(
+        model=get_deployment(),
+        messages=[
+            {"role": "system", "content": ROADMAP_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.7,
+        max_tokens=2000,
+    )
+
+    content = response.choices[0].message.content.strip()
+    if content.startswith("```"):
+        content = content.split("\n", 1)[1]
+    if content.endswith("```"):
+        content = content[:-3]
+
+    roadmap = json.loads(content)
+
+    try:
+        db = get_db()
+        db.collection("roadmaps").add({
+            "uid": uid or "anonymous",
+            "roadmap": roadmap,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except:
+        pass
+
+    return roadmap
+
+
+@router.post("/roadmap/generate")
+async def generate_roadmap(req: RoadmapRequest):
+    try:
+        roadmap = generate_roadmap_data(
+            persona=req.persona,
+            role=req.role,
+            composite_score=req.composite_score,
+            dimensions=req.dimensions,
+            uid=req.uid,
+            company=req.company,
         )
-
-        content = response.choices[0].message.content.strip()
-        if content.startswith("```"):
-            content = content.split("\n", 1)[1]
-        if content.endswith("```"):
-            content = content[:-3]
-
-        roadmap = json.loads(content)
-
-        try:
-            db = get_db()
-            db.collection("roadmaps").add({
-                "uid": req.uid or "anonymous",
-                "roadmap": roadmap,
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-            })
-        except:
-            pass
-
         return {"status": "ok", "roadmap": roadmap}
 
     except Exception as e:

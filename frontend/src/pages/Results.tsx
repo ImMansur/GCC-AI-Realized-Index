@@ -79,6 +79,7 @@ const Results = () => {
     persona?: string;
     role?: string;
     answers?: any[];
+    roadmap?: any;
   };
 
   const [scores, setScores] = useState<Scores | undefined>(stateData.scores);
@@ -86,6 +87,7 @@ const Results = () => {
   const [persona, setPersona] = useState<string | undefined>(stateData.persona);
   const [role, setRole] = useState<string | undefined>(stateData.role);
   const [answers, setAnswers] = useState<any[] | undefined>(stateData.answers);
+  const [roadmap] = useState<any>(stateData.roadmap);
   const [loadingResults, setLoadingResults] = useState(!stateData.scores);
 
   const [radius, setRadius] = useState(45);
@@ -530,7 +532,7 @@ const Results = () => {
             variant="ey"
             size="lg"
             className="shimmer w-full sm:w-auto"
-            onClick={() => navigate("/roadmap", { state: { scores, insights, persona, role, answers } })}
+            onClick={() => navigate("/roadmap", { state: { scores, insights, persona, role, answers, roadmap } })}
           >
             Get your AI roadmap
             <ArrowRight className="h-4 w-4 ml-1" />

@@ -68,19 +68,23 @@ const TIMELINE_COLORS: Record<string, string> = {
 const RoadmapPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { scores, persona, role, insights, answers } = (location.state || {}) as {
+  const { scores, persona, role, insights, answers, roadmap: preGeneratedRoadmap } = (location.state || {}) as {
     scores?: Scores;
     persona?: string;
     role?: string;
     insights?: Record<string, string[]>;
     answers?: any[];
+    roadmap?: Roadmap;
   };
 
-  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(preGeneratedRoadmap || null);
+  const [loading, setLoading] = useState(!preGeneratedRoadmap);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
+    // Skip generation if we already have a pre-generated roadmap
+    if (preGeneratedRoadmap) return;
+
     if (!scores || !persona || !role) {
       setLoading(false);
       return;
