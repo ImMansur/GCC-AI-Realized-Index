@@ -9,74 +9,133 @@ from app.routes.questions import get_client, get_deployment
 
 router = APIRouter()
 
-ROADMAP_PROMPT = """You are a senior AI transformation consultant at EY producing a personalized AI transformation roadmap for a GCC leader.
+ROADMAP_PROMPT = """You are a senior AI transformation consultant creating a 6-month roadmap for a GCC leader.
 
-Given the user's persona, role, current GARIX composite score and per-dimension scores, generate a concrete, actionable roadmap to advance to the next maturity stage.
+TASK:
+Generate a practical roadmap to move from current GARIX stage to the next stage.
 
-GARIX Maturity Stages:
-- Stage 1 (1–2): AI Aware
-- Stage 2 (2–3): AI Embedded
-- Stage 3 (3–4): AI Scaled
-- Stage 4 (4–4.5): AI Native
-- Stage 5 (4.5–5): AI Realized
+---
 
-Return a JSON object with EXACTLY this structure:
+CRITICAL RULE 1 — SCORE SENSITIVITY:
+
+- If a dimension score ≥ 4.5:
+  → Do NOT criticize or suggest foundational fixes
+  → Focus only on optimization, scaling, or acceleration
+
+- If a dimension score < 4:
+  → Focus on building foundational capabilities
+
+---
+
+CRITICAL RULE 2 — INTER-DIMENSION CONSISTENCY:
+
+Ensure roadmap actions are logically connected:
+
+- Strategy drives all improvements
+- Risk aligns with Strategy maturity
+- Performance & Value depends on Strategy and Data
+- Platform & Data must evolve together
+- Governance, Talent, Organization, Data must be coordinated
+
+Avoid isolated or conflicting actions.
+
+---
+
+CRITICAL RULE 3 — COHERENT TRANSFORMATION:
+
+- Actions must feel like one integrated plan
+- Sequence logically (foundation → scale → optimize)
+- Do not mix early-stage and advanced actions randomly
+
+---
+
+OUTPUT FORMAT:
 {
-  "target_score": <number — realistic 6-month target score, typically current + 1.0 to 1.7>,
-  "target_stage_name": "<stage name the target score falls into>",
+  "target_score": <number>,
+  "target_stage_name": "<stage>",
   "actions": [
     {
       "number": 1,
-      "title": "<short action title, max 6 words>",
-      "description": "<2-3 sentence practical description of what to do and why it matters. Be specific to their persona/role.>",
+      "title": "<short title>",
+      "description": "<2-3 sentence practical action>",
       "timeline": "30-day action"
     },
     {
       "number": 2,
-      "title": "<short action title>",
-      "description": "<2-3 sentence description>",
+      "title": "<short title>",
+      "description": "<2-3 sentence action>",
       "timeline": "60-day action"
     },
     {
       "number": 3,
-      "title": "<short action title>",
-      "description": "<2-3 sentence description>",
+      "title": "<short title>",
+      "description": "<2-3 sentence action>",
       "timeline": "90-day action"
     }
   ],
   "journey": [
     {
       "months": "1-2",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "2-3",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "3-5",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     },
     {
       "months": "5-6",
-      "phase_title": "<short phase name>",
-      "milestones": ["<milestone 1>", "<milestone 2>", "<milestone 3>"]
+      "phase_title": "<phase>",
+      "milestones": ["...", "...", "..."]
     }
   ],
-  "projected_landing": "<1-2 sentence summary of what executing this roadmap achieves. Reference the target score, target stage, and India GCC median of 2.6.>"
+  "projected_landing": "<summary>"
 }
 
-Requirements:
-- Actions should be specific to their weakest dimensions and most impactful improvements
-- Journey milestones should be concrete, measurable deliverables
-- Use professional consulting language, not generic platitudes
-- Reference specific dimension names where relevant
-- The roadmap should feel personalized to their persona and role
 
-Return ONLY the JSON object, no other text."""
+Requirements:
+- Actions should target weakest dimensions
+- Journey milestones must be measurable
+- Use professional consulting language
+- Personalize to persona and role
+- Reference dimension names explicitly
+
+CRITICAL CONSISTENCY RULES (STRICT):
+
+The roadmap must reflect ONE unified transformation narrative across all dimensions.
+
+1. Strategy is the primary driver:
+   - If Strategy is weak → first actions MUST strengthen Strategy
+   - All other dimensions must depend on Strategy maturity
+
+2. Strategy & Risk:
+   - Risk must align with Strategy maturity
+   - Do NOT propose advanced risk frameworks if Strategy is weak
+
+3. Performance & Value:
+   - Must depend on BOTH Strategy and Data maturity
+   - No value realization without foundation
+
+4. Platform & Data:
+   - Must evolve together
+   - No advanced platform without strong data readiness
+
+5. Governance, Talent, Organization, Data:
+   - Must be improved together
+   - Avoid isolated improvements
+
+GLOBAL RULE:
+All actions must feel like ONE coordinated transformation plan.
+No contradictions. No isolated maturity jumps.
+
+Return ONLY the JSON object.
+"""
 
 
 class DimensionScoreItem(BaseModel):
@@ -98,14 +157,12 @@ class RoadmapRequest(BaseModel):
 
 @router.post("/roadmap/generate")
 async def generate_roadmap(req: RoadmapRequest):
-    """Generate AI transformation roadmap based on GARIX scores."""
     try:
         dims_summary = "\n".join(
             f"- {d.dimension_name} (ID {d.dimension_id}): Score {d.score}/5 (weight {d.weight}×)"
             for d in req.dimensions
         )
 
-        # Find current stage
         cs = req.composite_score
         if cs < 2:
             current_stage = "Stage 1 — AI Aware"
@@ -118,7 +175,6 @@ async def generate_roadmap(req: RoadmapRequest):
         else:
             current_stage = "Stage 5 — AI Realized"
 
-        # Find weakest and strongest
         sorted_dims = sorted(req.dimensions, key=lambda d: d.score)
         weakest = sorted_dims[:3]
         strongest = sorted_dims[-2:]
@@ -126,15 +182,15 @@ async def generate_roadmap(req: RoadmapRequest):
         user_prompt = f"""Company/GCC: {req.company or 'India GCC'}
 Persona: {req.persona}
 Role: {req.role}
-Current GARIX Composite Score: {req.composite_score}/5 ({current_stage})
+Current Score: {req.composite_score}/5 ({current_stage})
 
 Dimension Scores:
 {dims_summary}
 
-Weakest dimensions (focus areas): {', '.join(f'{d.dimension_name} ({d.score})' for d in weakest)}
-Strongest dimensions: {', '.join(f'{d.dimension_name} ({d.score})' for d in strongest)}
+Weakest: {', '.join(f'{d.dimension_name} ({d.score})' for d in weakest)}
+Strongest: {', '.join(f'{d.dimension_name} ({d.score})' for d in strongest)}
 
-Generate a personalized 6-month AI transformation roadmap for this {req.role} in {req.persona} to advance from {current_stage} to the next stage."""
+Generate roadmap."""
 
         response = get_client().chat.completions.create(
             model=get_deployment(),
@@ -146,36 +202,25 @@ Generate a personalized 6-month AI transformation roadmap for this {req.role} in
             max_tokens=2000,
         )
 
-        content = response.choices[0].message.content or ""
-        content = content.strip()
+        content = response.choices[0].message.content.strip()
         if content.startswith("```"):
-            content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+            content = content.split("\n", 1)[1]
         if content.endswith("```"):
             content = content[:-3]
-        content = content.strip()
 
         roadmap = json.loads(content)
 
-        # Persist roadmap in Firestore
         try:
             db = get_db()
-            roadmap_doc = {
+            db.collection("roadmaps").add({
                 "uid": req.uid or "anonymous",
-                "persona": req.persona,
-                "role": req.role,
-                "composite_score": req.composite_score,
-                "dimensions": [d.model_dump() for d in req.dimensions],
                 "roadmap": roadmap,
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            db.collection("roadmaps").add(roadmap_doc)
-            if req.uid:
-                db.collection("users").document(req.uid).collection("roadmaps").add(roadmap_doc)
-        except Exception:
-            pass  # Don't fail the response if storage fails
+            })
+        except:
+            pass
 
         return {"status": "ok", "roadmap": roadmap}
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Failed to parse roadmap response")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -76,15 +76,55 @@ def compute_scores(answers: list[AnswerItem]) -> dict:
     }
 
 
-INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a personalized GARIX assessment report for a GCC leader.
+INSIGHTS_PROMPT = """You are a senior AI maturity consultant producing a GARIX assessment report for a GCC leader.
 
-Given the user's persona, role, and their scores across 9 GARIX dimensions (each scored 1-5), generate a concise insight for EACH dimension describing what their current maturity stage looks like in practice.
+TASK:
+Generate 3 concise bullet points per dimension describing current maturity based on score.
 
-For each dimension, provide exactly 3 bullet points that:
-- Are specific to their score level and persona/role responsibilities
-- Describe observable behaviors, capabilities, or outcomes at their current stage
-- Use present tense, professional consulting language
-- Are concise (max 15 words each)
+---
+
+CRITICAL RULE 1 — SCORE-BASED LANGUAGE:
+
+The tone MUST match the score:
+
+Score 1–2:
+- Early, fragmented, reactive, limited maturity
+
+Score 3:
+- Emerging, developing, partially structured
+
+Score 4:
+- Structured, consistent, scalable
+
+Score 4.5–5:
+- Fully mature, optimized, industry-leading, proactive
+
+STRICT:
+- If score ≥ 4.5 → DO NOT include any negative, weak, or improvement language
+- Do NOT suggest gaps or deficiencies for high scores
+- Focus only on strengths, maturity, and optimization
+
+---
+
+CRITICAL RULE 2 — INTER-DIMENSION CONSISTENCY:
+
+Ensure all dimensions reflect ONE coherent maturity level.
+
+- Strategy influences all dimensions
+- Risk must align with Strategy
+- Performance & Value depends on Strategy and Data
+- Platform & Data must be aligned
+- Governance, Talent, Organization, Data must evolve together
+
+DO NOT create contradictions between dimensions.
+
+---
+
+OUTPUT RULES:
+- Exactly 3 bullet points per dimension
+- Max 15 words each
+- Present tense
+- Concrete, observable statements
 
 Return a JSON object where keys are dimension IDs (as strings "1" through "9") and values are arrays of exactly 3 strings.
 
