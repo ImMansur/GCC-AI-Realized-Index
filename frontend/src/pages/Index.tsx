@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, BarChart3, Shield, Users, Zap, Timer, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import InteractiveBackground from "@/components/InteractiveBackground";
 
 const dimensions = [
   { id: "D1", name: "Strategy", desc: "AI vision, executive mandate, multi-year investment roadmap", icon: "🎯" },
@@ -25,6 +26,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-mesh-gradient relative overflow-hidden">
+      {/* Interactive particle background */}
+      <InteractiveBackground />
       {/* Animated background orbs */}
       <div className="orb orb-gold w-[500px] h-[500px] top-[-10%] left-[-5%]" />
       <div className="orb orb-blue w-[400px] h-[400px] top-[20%] right-[-8%]" />

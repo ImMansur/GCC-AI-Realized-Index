@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
+import InteractiveBackground from "@/components/InteractiveBackground";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,8 @@ interface AuthLayoutProps {
 const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
   return (
     <div className="min-h-screen bg-mesh-gradient flex relative overflow-hidden">
+      {/* Interactive particle background */}
+      <InteractiveBackground count={40} />
       {/* Global background orbs */}
       <div className="orb orb-gold w-[400px] h-[400px] top-[-5%] right-[20%]" />
       <div className="orb orb-blue w-[300px] h-[300px] bottom-[10%] left-[40%]" />

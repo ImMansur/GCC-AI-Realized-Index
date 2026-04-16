@@ -127,12 +127,71 @@ DO NOT create contradictions between dimensions.
 OUTPUT RULES:
 - Exactly 3 bullet points per dimension
 - Max 15 words each
+- Each bullet MUST be ≤ 120 characters
 - Present tense
 - Concrete, observable statements
+
+---
+
+GUARDRAILS (STRICT — VIOLATIONS WILL BE REJECTED):
+
+1. Observations only — NO recommendations, advice, or action items
+2. Neutral, evidence-based tone — no persuasive or directive language
+3. Do NOT use directive phrases like "you should", "you must", "consider", "we recommend", "ensure that"
+4. Do NOT mention any vendor, product, or competitor names (e.g. Microsoft, AWS, Google, Accenture, McKinsey, Deloitte, etc.)
+5. Do NOT make financial promises or projections (e.g. "will save 30%", "ROI of 5x")
+6. Do NOT provide legal advice or reference regulatory specifics
+7. Do NOT reference confidential, proprietary, or internal data
+8. Do NOT use speculative language (e.g. "likely", "probably", "might", "could potentially")
+9. Do NOT include any personally identifiable information (PII) — no names, emails, titles of real people
+10. Do NOT use guarantee language (e.g. "guaranteed", "will definitely", "ensures success")
+
+---
 
 Return a JSON object where keys are dimension IDs (as strings "1" through "9") and values are arrays of exactly 3 strings.
 
 Return ONLY the JSON object, no other text."""
+
+import re as _re
+
+_PROHIBITED_TERMS = _re.compile(
+    r"\b("
+    r"microsoft|aws|amazon|google|accenture|mckinsey|deloitte|kpmg|pwc|"
+    r"bain|bcg|ibm|oracle|salesforce|sap|infosys|wipro|tcs|cognizant|capgemini|"
+    r"you should|you must|we recommend|ensure that|consider\b|"
+    r"guaranteed|will definitely|ensures success|"
+    r"likely|probably|might|could potentially|"
+    r"will save|roi of|cost reduction of|revenue increase"
+    r")\b",
+    _re.IGNORECASE,
+)
+
+_PII_PATTERN = _re.compile(
+    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+)
+
+_MAX_BULLET_LEN = 120
+
+
+def _sanitize_insights(raw: dict) -> dict:
+    """Enforce guardrails on generated insight bullets."""
+    cleaned: dict[str, list[str]] = {}
+    for dim_id, bullets in raw.items():
+        if not isinstance(bullets, list):
+            continue
+        safe_bullets: list[str] = []
+        for bullet in bullets:
+            if not isinstance(bullet, str):
+                continue
+            # Cap length
+            text = bullet[:_MAX_BULLET_LEN]
+            # Strip prohibited terms
+            text = _PROHIBITED_TERMS.sub("***", text)
+            # Strip PII (emails)
+            text = _PII_PATTERN.sub("[REDACTED]", text)
+            safe_bullets.append(text)
+        cleaned[str(dim_id)] = safe_bullets
+    return cleaned
 
 
 def generate_insights(persona: str, role: str, scores: dict) -> dict:
@@ -170,7 +229,7 @@ Generate 3 concise bullet points per dimension describing what this maturity sta
             content = content[:-3]
         content = content.strip()
 
-        return json.loads(content)
+        return _sanitize_insights(json.loads(content))
     except Exception:
         return {}
 
