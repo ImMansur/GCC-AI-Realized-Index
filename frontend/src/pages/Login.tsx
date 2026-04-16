@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword,sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,21 @@ const Login = () => {
       setLoading(false);
     }
   };
+     // FORGOT PASSWORD FUNCTION (Firebase)
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email first");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success("Password reset email sent!");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
 
   return (
     <AuthLayout
@@ -107,7 +122,7 @@ const Login = () => {
             <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Password
             </Label>
-            <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
+            <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
               Forgot password?
             </button>
           </div>
