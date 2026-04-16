@@ -10,6 +10,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
+  Tooltip,
 } from "recharts";
 
 interface DimensionScore {
@@ -277,7 +278,7 @@ const Results = () => {
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
                 9-Dimension Radar
               </h3>
-              <div className="w-full aspect-square max-w-[380px] mx-auto">
+              <div className="w-full aspect-square max-w-[480px] mx-auto">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={`${radius}%`}>
                     <PolarGrid stroke="hsl(var(--border))" strokeOpacity={0.3} />
@@ -300,6 +301,10 @@ const Results = () => {
                       fill="hsl(var(--primary))"
                       fillOpacity={0.2}
                       strokeWidth={2}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                      labelStyle={{ color: "#fff" }}
                     />
                   </RadarChart>
                 </ResponsiveContainer>

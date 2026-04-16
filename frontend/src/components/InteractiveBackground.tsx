@@ -69,7 +69,7 @@ const InteractiveBackground = ({ count = 150 }: { count?: number }) => {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none z-0"
+      className="absolute inset-0 w-full h-full pointer-events-none z-0 hidden sm:block"
       style={{ opacity: 0.7 }}
     />
   );

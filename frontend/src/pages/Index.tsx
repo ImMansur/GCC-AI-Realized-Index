@@ -146,7 +146,7 @@ const Index = () => {
                 <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{s.name}</div>
                 <div className="text-xs text-muted-foreground">GARIX {s.range}</div>
               </div>
-              <span className="text-xs px-3 py-1.5 rounded-full border border-border/50 bg-white/[0.02] text-muted-foreground group-hover:border-primary/30 group-hover:text-foreground transition-all whitespace-nowrap">
+              <span className="text-xs px-3 py-1.5 rounded-lg sm:rounded-full border border-border/50 bg-white/[0.02] text-muted-foreground group-hover:border-primary/30 group-hover:text-foreground transition-all max-w-[140px] sm:max-w-none text-center sm:text-left">
                 {s.tag}
               </span>
             </div>

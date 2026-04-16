@@ -341,7 +341,7 @@ const AdminDashboard = () => {
 
       {/* ─── Header ─── */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 py-3">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-3 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
               <span className="text-sm font-extrabold text-primary-foreground tracking-tight">EY</span>
@@ -374,7 +374,7 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-6 py-6 relative z-10">
+      <main className="max-w-[1400px] mx-auto px-3 sm:px-6 py-4 sm:py-6 relative z-10">
 
         {/* ═══ Stat Cards (redesigned with accent bars & contextual info) ═══ */}
         {stats && (
@@ -435,7 +435,7 @@ const AdminDashboard = () => {
         )}
 
         {/* ═══ Tab Navigation (pill style with icons & counts) ═══ */}
-        <div className="flex gap-1 rounded-2xl border border-border/40 bg-card/40 backdrop-blur-md p-1.5 mb-6 w-fit">
+        <div className="flex gap-1 rounded-2xl border border-border/40 bg-card/40 backdrop-blur-md p-1.5 mb-6 w-fit max-w-full overflow-x-auto">
           {([
             { key: "overview" as const, label: "Overview", icon: Activity, count: null },
             { key: "surveys" as const, label: "Surveys", icon: FileBarChart, count: surveys.length },
@@ -471,7 +471,7 @@ const AdminDashboard = () => {
           <div className="space-y-6">
             {/* Top row — Highlights strip */}
             {(highestAvgDim || lowestAvgDim) && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5 flex items-center gap-4">
                   <div className="h-11 w-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                     <Award className="h-5 w-5 text-emerald-400" />
@@ -492,7 +492,7 @@ const AdminDashboard = () => {
                     <div className="text-xs text-muted-foreground">{lowestAvgDim?.score}/5.0 avg</div>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5 flex items-center gap-4">
+                <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5 flex items-center gap-4 sm:col-span-2 lg:col-span-1">
                   <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <BarChart3 className="h-5 w-5 text-primary" />
                   </div>
@@ -565,7 +565,7 @@ const AdminDashboard = () => {
                     <BarChart data={personaChartData} layout="vertical" margin={{ left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
                       <XAxis type="number" tick={{ fill: "#666", fontSize: 10 }} allowDecimals={false} />
-                      <YAxis dataKey="name" type="category" tick={{ fill: "#aaa", fontSize: 11 }} width={120} />
+                      <YAxis dataKey="name" type="category" tick={{ fill: "#aaa", fontSize: 11 }} width={90} />
                       <Tooltip
                         contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
                         labelStyle={{ color: "#fff" }}
@@ -694,7 +694,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Survey cards/table */}
-            <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+            <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border/30 hover:bg-transparent">
@@ -765,7 +765,7 @@ const AdminDashboard = () => {
                         {isExpanded && (
                           <TableRow key={`${s.id}-detail`} className="border-border/10">
                             <TableCell colSpan={7} className="p-0">
-                              <div className="bg-gradient-to-b from-white/[0.02] to-transparent border-t border-primary/10 p-6 animate-in slide-in-from-top-2 duration-200">
+                              <div className="bg-gradient-to-b from-white/[0.02] to-transparent border-t border-primary/10 p-3 sm:p-6 animate-in slide-in-from-top-2 duration-200">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                   {/* Radar chart */}
                                   <div className="rounded-xl border border-border/30 bg-white/[0.01] p-4">
@@ -796,7 +796,7 @@ const AdminDashboard = () => {
                                     <div className="space-y-3">
                                       {s.scores.dimensions.map((d) => (
                                         <div key={d.dimension_id} className="flex items-center gap-3">
-                                          <span className="text-[11px] text-muted-foreground w-28 truncate shrink-0">{d.dimension_name}</span>
+                                          <span className="text-[11px] text-muted-foreground w-20 sm:w-28 truncate shrink-0">{d.dimension_name}</span>
                                           <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
                                             <div
                                               className="h-full rounded-full transition-all"
@@ -952,7 +952,7 @@ const AdminDashboard = () => {
                                         </h4>
 
                                         {/* Target banner */}
-                                        <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent p-4 mb-4 flex items-center gap-5">
+                                        <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent p-4 mb-4 flex items-center gap-3 sm:gap-5 flex-wrap sm:flex-nowrap">
                                           <div className="text-center shrink-0">
                                             <div className="text-2xl font-extrabold text-primary">{rm.target_score.toFixed(1)}</div>
                                             <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5">Target</div>
@@ -965,7 +965,7 @@ const AdminDashboard = () => {
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                                           {rm.actions.map((action) => (
                                             <div key={action.number} className="rounded-xl border border-border/30 bg-white/[0.015] p-4">
                                               <div className="flex items-center gap-2 mb-2">
