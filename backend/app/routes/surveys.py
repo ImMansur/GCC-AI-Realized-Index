@@ -269,6 +269,7 @@ async def submit_survey(submission: SurveySubmission, background_tasks: Backgrou
             "answers": [a.model_dump() for a in submission.answers],
             "scores": scores,
             "insights": insights,
+            "roadmap": roadmap,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
         }
 

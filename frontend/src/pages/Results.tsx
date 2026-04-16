@@ -120,7 +120,7 @@ const Results = () => {
   const [persona, setPersona] = useState<string | undefined>(stateData.persona);
   const [role, setRole] = useState<string | undefined>(stateData.role);
   const [answers, setAnswers] = useState<any[] | undefined>(stateData.answers);
-  const [roadmap] = useState<any>(stateData.roadmap);
+  const [roadmap, setRoadmap] = useState<any>(stateData.roadmap);
   const [loadingResults, setLoadingResults] = useState(!stateData.scores);
   const [benchmark, setBenchmark] = useState(() => getBenchmark(stateData.role));
 
@@ -194,6 +194,9 @@ const Results = () => {
           setPersona(data.survey.persona);
           setRole(data.survey.role);
           setAnswers(data.survey.answers);
+          if (data.survey.roadmap) {
+            setRoadmap(data.survey.roadmap);
+          }
         }
       } catch {
         // No results found
