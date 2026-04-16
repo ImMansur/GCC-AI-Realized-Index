@@ -12,6 +12,7 @@ from app.routes.surveys import router as surveys_router
 from app.routes.roadmap import router as roadmap_router
 from app.routes.admin import router as admin_router
 from app.routes.diagnostic import router as diagnostic_router
+from app.routes.benchmarks import router as benchmarks_router
 
 app = FastAPI(title="GARIX AI Survey API")
 
@@ -29,6 +30,7 @@ app.include_router(surveys_router, prefix="/api")
 app.include_router(roadmap_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(diagnostic_router, prefix="/api")
+app.include_router(benchmarks_router, prefix="/api")
 
 
 @app.get("/api/health")

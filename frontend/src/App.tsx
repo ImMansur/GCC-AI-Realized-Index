@@ -11,7 +11,6 @@ import Designation from "./pages/Designation.tsx";
 import Survey from "./pages/Survey.tsx";
 import Results from "./pages/Results.tsx";
 import RoadmapPage from "./pages/Roadmap.tsx";
-import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import ForgotPassword from "./pages/ForgotPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -48,7 +47,6 @@ const App = () => (
           <Route path="/survey" element={<Survey />} />
           <Route path="/results" element={<Results />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
-          <Route path="/admin" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

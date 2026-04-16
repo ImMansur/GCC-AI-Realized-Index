@@ -53,13 +53,45 @@ function getBarColor(score: number): string {
   return "bg-emerald-500";
 }
 
-/* ── Fake benchmark data ── */
-const BENCHMARK = {
-  leading_quartile: 3.4,
-  median: 2.6,
-  lagging_quartile: 1.8,
-  sector_average: 2.4,
+/* ── Role-specific benchmark data ── */
+const BENCHMARK_BY_ROLE: Record<string, { median: number; leading_quartile: number; lagging_quartile: number }> = {
+  // GCC Leadership
+  "GCC Head":                          { median: 3.1, leading_quartile: 3.3, lagging_quartile: 2.2 },
+  "Managing Director (MD)":            { median: 3.1, leading_quartile: 3.3, lagging_quartile: 2.2 },
+  "Chief Operating Officer (COO)":     { median: 3.1, leading_quartile: 3.3, lagging_quartile: 2.2 },
+  "Strategy Officer":                  { median: 3.2, leading_quartile: 3.4, lagging_quartile: 2.2 },
+  // Tech Leadership
+  "CIO":                               { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  "CTO/VP Engineering":                { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  "Head of IT":                        { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  // Data Leadership
+  "Head of Data":                      { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  "Chief Data Officer":                { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  "Analytics Lead":                    { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  // AI/ML Practitioners
+  "Data Scientists":                   { median: 3.2, leading_quartile: 3.4, lagging_quartile: 2.2 },
+  "ML Engineers":                      { median: 3.2, leading_quartile: 3.4, lagging_quartile: 2.2 },
+  "AI CoE":                            { median: 3.2, leading_quartile: 3.4, lagging_quartile: 2.2 },
+  // HR & Talent Leadership
+  "CHRO / VP HR":                      { median: 2.8, leading_quartile: 3.1, lagging_quartile: 2.0 },
+  "Head of L&D":                       { median: 2.8, leading_quartile: 3.1, lagging_quartile: 2.0 },
+  "Talent Acquisition":                { median: 2.7, leading_quartile: 3.1, lagging_quartile: 2.0 },
+  // Function & Business Leaders
+  "Head of Finance Ops":               { median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  "Operations Lead":                   { median: 2.9, leading_quartile: 3.2, lagging_quartile: 2.0 },
+  "Head of Procurement & Supply Chain":{ median: 3.0, leading_quartile: 3.3, lagging_quartile: 2.1 },
+  // Risk, Legal & Compliance
+  "General Counsel":                   { median: 2.4, leading_quartile: 3.0, lagging_quartile: 1.9 },
+  "Head of Risk":                      { median: 2.6, leading_quartile: 3.0, lagging_quartile: 2.0 },
+  "Compliance Officer":                { median: 2.4, leading_quartile: 3.0, lagging_quartile: 1.9 },
 };
+
+const DEFAULT_BENCHMARK = { median: 2.9, leading_quartile: 3.3, lagging_quartile: 2.1 };
+
+function getBenchmark(role?: string) {
+  if (role && BENCHMARK_BY_ROLE[role]) return BENCHMARK_BY_ROLE[role];
+  return DEFAULT_BENCHMARK;
+}
 
 const DIMENSION_ICONS: Record<number, string> = {
   1: "🎯", 2: "⚙️", 3: "🎓", 4: "🖥️", 5: "🏢",
@@ -89,6 +121,7 @@ const Results = () => {
   const [answers, setAnswers] = useState<any[] | undefined>(stateData.answers);
   const [roadmap] = useState<any>(stateData.roadmap);
   const [loadingResults, setLoadingResults] = useState(!stateData.scores);
+  const [benchmark, setBenchmark] = useState(() => getBenchmark(stateData.role));
 
   const [radius, setRadius] = useState(45);
 
@@ -107,6 +140,26 @@ const Results = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Fetch dynamic benchmarks from backend when role is available
+  useEffect(() => {
+    if (!role) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/benchmarks/${encodeURIComponent(role)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBenchmark({
+            median: data.median,
+            leading_quartile: data.leading_quartile,
+            lagging_quartile: data.lagging_quartile,
+          });
+        }
+      } catch {
+        // Keep static fallback
+      }
+    })();
+  }, [role]);
 
   useEffect(() => {
     // If we already have scores from navigation state, no need to fetch
@@ -189,7 +242,7 @@ const Results = () => {
 
   // Stage map position (0-100%)
   const stageMapPct = ((scores.composite_score - 1) / 4) * 100;
-  const medianPct = ((BENCHMARK.median - 1) / 4) * 100;
+  const medianPct = ((benchmark.median - 1) / 4) * 100;
 
   return (
     <div className="min-h-screen bg-mesh-gradient px-3 py-6 sm:p-6 relative overflow-hidden">
@@ -421,10 +474,10 @@ const Results = () => {
                 India GCC — Leading quartile
               </span>
               <span className="text-base sm:text-lg font-bold text-foreground">
-                {BENCHMARK.leading_quartile.toFixed(1)}
+                {benchmark.leading_quartile.toFixed(1)}
               </span>
               <span className="text-[10px] sm:text-xs font-bold text-emerald-400 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5">
-                +{(BENCHMARK.leading_quartile - scores.composite_score).toFixed(1)} ahead
+                +{(benchmark.leading_quartile - scores.composite_score).toFixed(1)} ahead
               </span>
             </div>
 
@@ -435,15 +488,15 @@ const Results = () => {
                 India GCC — Median
               </span>
               <span className="text-base sm:text-lg font-bold text-foreground">
-                {BENCHMARK.median.toFixed(1)}
+                {benchmark.median.toFixed(1)}
               </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.median
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= benchmark.median
                   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                   : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
                 }`}>
-                {scores.composite_score >= BENCHMARK.median
-                  ? `+${(scores.composite_score - BENCHMARK.median).toFixed(1)} ahead`
-                  : `+${(BENCHMARK.median - scores.composite_score).toFixed(1)} ahead`}
+                {scores.composite_score >= benchmark.median
+                  ? `+${(scores.composite_score - benchmark.median).toFixed(1)} ahead`
+                  : `+${(benchmark.median - scores.composite_score).toFixed(1)} ahead`}
               </span>
             </div>
 
@@ -454,34 +507,15 @@ const Results = () => {
                 India GCC — Lagging quartile
               </span>
               <span className="text-base sm:text-lg font-bold text-foreground">
-                {BENCHMARK.lagging_quartile.toFixed(1)}
+                {benchmark.lagging_quartile.toFixed(1)}
               </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.lagging_quartile
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= benchmark.lagging_quartile
                   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                   : "text-red-400 border-red-500/30 bg-red-500/10"
                 }`}>
-                {scores.composite_score >= BENCHMARK.lagging_quartile
-                  ? `+${(scores.composite_score - BENCHMARK.lagging_quartile).toFixed(1)} ahead`
-                  : `-${(BENCHMARK.lagging_quartile - scores.composite_score).toFixed(1)} gap`}
-              </span>
-            </div>
-
-            {/* Banking sector average */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-xl border border-border/50 bg-card/60 p-3 sm:p-4">
-              <div className="h-3 w-3 rounded-full bg-muted-foreground/50 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium text-foreground flex-1 min-w-0">
-                Banking sector average
-              </span>
-              <span className="text-base sm:text-lg font-bold text-foreground">
-                {BENCHMARK.sector_average.toFixed(1)}
-              </span>
-              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= BENCHMARK.sector_average
-                  ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
-                  : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
-                }`}>
-                {scores.composite_score >= BENCHMARK.sector_average
-                  ? `+${(scores.composite_score - BENCHMARK.sector_average).toFixed(1)} ahead`
-                  : `+${(BENCHMARK.sector_average - scores.composite_score).toFixed(1)} ahead`}
+                {scores.composite_score >= benchmark.lagging_quartile
+                  ? `+${(scores.composite_score - benchmark.lagging_quartile).toFixed(1)} ahead`
+                  : `-${(benchmark.lagging_quartile - scores.composite_score).toFixed(1)} gap`}
               </span>
             </div>
           </div>
@@ -500,13 +534,13 @@ const Results = () => {
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 backdrop-blur-sm p-4 sm:p-6 mb-8">
           <p className="text-sm text-muted-foreground leading-relaxed">
             <span className="font-bold text-yellow-400">
-              {scores.composite_score < BENCHMARK.median
+              {scores.composite_score < benchmark.median
                 ? `You're below the India GCC median`
                 : `You're above the India GCC median`}
             </span>
-            {" "}at {scores.composite_score.toFixed(1)} vs {BENCHMARK.median.toFixed(1)}.
-            {scores.composite_score < BENCHMARK.median
-              ? ` This is common — over 60% of India GCCs are in AI Aware or early AI Embedded. The gap to median is ${(BENCHMARK.median - scores.composite_score).toFixed(1)} points — achievable within 6–9 months with the right foundation investments.`
+            {" "}at {scores.composite_score.toFixed(1)} vs {benchmark.median.toFixed(1)}.
+            {scores.composite_score < benchmark.median
+              ? ` This is common — over 60% of India GCCs are in AI Aware or early AI Embedded. The gap to median is ${(benchmark.median - scores.composite_score).toFixed(1)} points — achievable within 6–9 months with the right foundation investments.`
               : ` You're ahead of the cohort median. Focus on scaling your strongest dimensions to move toward AI Native maturity.`}
           </p>
         </div>

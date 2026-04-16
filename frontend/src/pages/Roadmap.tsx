@@ -251,7 +251,9 @@ const RoadmapPage = () => {
           <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
             Your current GARIX score is {scores.composite_score.toFixed(1)} (Stage {currentStage}).
             Based on your profile, here are your 3 immediate actions and a 6-month roadmap to
-            reach Stage {targetStageNum} — GARIX {roadmap.target_score.toFixed(1)}.
+            {currentStage === targetStageNum
+              ? ` advance to GARIX ${roadmap.target_score.toFixed(1)} within ${roadmap.target_stage_name}.`
+              : ` reach Stage ${targetStageNum} — GARIX ${roadmap.target_score.toFixed(1)}.`}
           </p>
         </div>
 

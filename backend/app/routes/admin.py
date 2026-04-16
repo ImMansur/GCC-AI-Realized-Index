@@ -234,3 +234,29 @@ async def download_report(report_id: str, token: str = Depends(verify_admin_toke
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/settings/benchmarks")
+async def get_benchmark_settings(token: str = Depends(verify_admin_token)):
+    """Get the current dynamic benchmark setting."""
+    db = get_db()
+    doc = db.collection("settings").document("benchmarks").get()
+    data = doc.to_dict() if doc.exists else {}
+    return {"dynamic_enabled": data.get("dynamic_enabled", False)}
+
+
+class BenchmarkSettingsUpdate(BaseModel):
+    dynamic_enabled: bool
+
+
+@router.put("/admin/settings/benchmarks")
+async def update_benchmark_settings(
+    body: BenchmarkSettingsUpdate,
+    token: str = Depends(verify_admin_token),
+):
+    """Toggle dynamic benchmark calculation on/off."""
+    db = get_db()
+    db.collection("settings").document("benchmarks").set(
+        {"dynamic_enabled": body.dynamic_enabled}, merge=True
+    )
+    return {"status": "ok", "dynamic_enabled": body.dynamic_enabled}

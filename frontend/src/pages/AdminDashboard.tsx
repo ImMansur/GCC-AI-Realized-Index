@@ -194,11 +194,12 @@ const AdminDashboard = () => {
   const [search, setSearch] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [tab, setTab] = useState<"overview" | "surveys" | "users" | "reports">("overview");
+  const [dynamicBenchmarks, setDynamicBenchmarks] = useState(false);
 
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
-      navigate("/admin");
+      navigate("/login");
       return;
     }
     fetchAll();
@@ -218,18 +219,19 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const headers = await getHeaders();
-      const [statsRes, surveysRes, usersRes, roadmapsRes, reportsRes] = await Promise.all([
+      const [statsRes, surveysRes, usersRes, roadmapsRes, reportsRes, benchmarkSettingsRes] = await Promise.all([
         fetch(`${API_BASE}/api/admin/stats`, { headers }),
         fetch(`${API_BASE}/api/admin/surveys`, { headers }),
         fetch(`${API_BASE}/api/admin/users`, { headers }),
         fetch(`${API_BASE}/api/admin/roadmaps`, { headers }),
         fetch(`${API_BASE}/api/admin/reports`, { headers }),
+        fetch(`${API_BASE}/api/admin/settings/benchmarks`, { headers }),
       ]);
 
       if (statsRes.status === 401 || surveysRes.status === 401 || usersRes.status === 401 || roadmapsRes.status === 401 || reportsRes.status === 401) {
         sessionStorage.removeItem("admin_token");
         toast.error("Session expired. Please login again.");
-        navigate("/admin");
+        navigate("/login");
         return;
       }
 
@@ -246,6 +248,11 @@ const AdminDashboard = () => {
       setUsers(usersData.users || []);
       setRoadmaps(roadmapsData.roadmaps || []);
       setReports(reportsData.reports || []);
+
+      if (benchmarkSettingsRes.ok) {
+        const bsData = await benchmarkSettingsRes.json();
+        setDynamicBenchmarks(bsData.dynamic_enabled ?? false);
+      }
     } catch {
       toast.error("Failed to fetch admin data");
     } finally {
@@ -258,7 +265,7 @@ const AdminDashboard = () => {
       await auth.signOut();
     } catch { /* ignore */ }
     sessionStorage.removeItem("admin_token");
-    navigate("/admin");
+    navigate("/login");
   }
 
   const filteredSurveys = surveys.filter((s) => {
@@ -617,6 +624,51 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+
+            {/* Dynamic Benchmarks Toggle */}
+            <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-foreground">Dynamic Benchmarks</div>
+                    <div className="text-xs text-muted-foreground">
+                      When enabled, benchmarks are computed from real survey data (requires ≥30 responses per role). Otherwise, static values are used.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const headers = await getHeaders();
+                      const res = await fetch(`${API_BASE}/api/admin/settings/benchmarks`, { headers });
+                      const current = res.ok ? await res.json() : { dynamic_enabled: false };
+                      const next = !current.dynamic_enabled;
+                      await fetch(`${API_BASE}/api/admin/settings/benchmarks`, {
+                        method: "PUT",
+                        headers,
+                        body: JSON.stringify({ dynamic_enabled: next }),
+                      });
+                      setDynamicBenchmarks(next);
+                      toast.success(`Dynamic benchmarks ${next ? "enabled" : "disabled"}`);
+                    } catch {
+                      toast.error("Failed to update setting");
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    dynamicBenchmarks ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                      dynamicBenchmarks ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

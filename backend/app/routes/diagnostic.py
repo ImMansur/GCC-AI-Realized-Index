@@ -158,6 +158,31 @@ def _get_stage(score: float) -> str:
     return "Stage 5 — AI Realized"
 
 
+# ── Role-specific GCC median benchmarks (static fallback) ──
+_BENCHMARK_MEDIAN: dict[str, float] = {
+    "GCC Head": 3.1, "Managing Director (MD)": 3.1,
+    "Chief Operating Officer (COO)": 3.1, "Strategy Officer": 3.2,
+    "CIO": 3.0, "CTO/VP Engineering": 3.0, "Head of IT": 3.0,
+    "Head of Data": 3.0, "Chief Data Officer": 3.0, "Analytics Lead": 3.0,
+    "Data Scientists": 3.2, "ML Engineers": 3.2, "AI CoE": 3.2,
+    "CHRO / VP HR": 2.8, "Head of L&D": 2.8, "Talent Acquisition": 2.7,
+    "Head of Finance Ops": 3.0, "Operations Lead": 2.9,
+    "Head of Procurement & Supply Chain": 3.0,
+    "General Counsel": 2.4, "Head of Risk": 2.6, "Compliance Officer": 2.4,
+}
+_DEFAULT_MEDIAN = 2.9
+
+
+def _get_median(role: str) -> float:
+    """Return the benchmark median for a role, using live data when available."""
+    try:
+        from app.routes.benchmarks import compute_benchmark
+        data = compute_benchmark(role)
+        return data["median"]
+    except Exception:
+        return _BENCHMARK_MEDIAN.get(role, _DEFAULT_MEDIAN)
+
+
 def _build_pdf(req: DiagnosticRequest) -> bytes:
     """Build a professional EY-branded PDF report."""
     buf = BytesIO()
@@ -329,10 +354,11 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
     elements.append(Spacer(1, 6))
 
     # ── India GCC benchmark note ──
+    _median = _get_median(req.role)
     elements.append(Paragraph(
-        '<font color="#999999">India GCC Median: 2.6 / 5.0  •  '
+        f'<font color="#999999">India GCC Median: {_median:.1f} / 5.0  •  '
         f'Your score is <b><font color="{score_colour.hexval()}">'
-        f'{"above" if req.composite_score > 2.6 else "at" if req.composite_score == 2.6 else "below"}'
+        f'{"above" if req.composite_score > _median else "at" if req.composite_score == _median else "below"}'
         f'</font></b> the benchmark</font>',
         ParagraphStyle("_bench", fontName="Helvetica", fontSize=9,
                        textColor=GREY, alignment=TA_CENTER, leading=12),
