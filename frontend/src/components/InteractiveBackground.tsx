@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const InteractiveBackground = ({ count = 150 }: { count?: number }) => {
+const InteractiveBackground = ({ count = 300 }: { count?: number }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
 
