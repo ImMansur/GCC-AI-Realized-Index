@@ -94,6 +94,30 @@ function getBenchmark(role?: string) {
   return DEFAULT_BENCHMARK;
 }
 
+/** Estimate the shortest duration (months) to reach a target score using the roadmap matrix. */
+function estimateMonthsToReach(currentScore: number, targetScore: number): number | null {
+  const durations = [3, 6, 9, 12] as const;
+  let matrix: Record<number, [number, number]>;
+
+  if (currentScore < 2.0)
+    matrix = { 3: [2.0, 2.5], 6: [2.6, 3.0], 9: [3.1, 3.5], 12: [3.6, 4.0] };
+  else if (currentScore < 3.0)
+    matrix = { 3: [2.5, 3.0], 6: [3.1, 3.5], 9: [3.6, 4.0], 12: [4.1, 4.5] };
+  else if (currentScore < 4.0)
+    matrix = { 3: [3.5, 4.0], 6: [4.1, 4.5], 9: [4.6, 4.8], 12: [4.6, 5.0] };
+  else if (currentScore < 4.5)
+    matrix = { 3: [4.1, 4.5], 6: [4.6, 4.8], 9: [4.7, 5.0], 12: [5.0, 5.0] };
+  else
+    matrix = { 6: [4.6, 5.0], 9: [5.0, 5.0], 12: [5.0, 5.0] };
+
+  for (const d of durations) {
+    const range = matrix[d];
+    if (!range) continue;
+    if (range[1] >= targetScore) return d;
+  }
+  return null; // beyond 12 months
+}
+
 const DIMENSION_ICONS: Record<number, string> = {
   1: "🎯", 2: "⚙️", 3: "🎓", 4: "🖥️", 5: "🏢",
   6: "📊", 7: "📈", 8: "🛡️", 9: "⚠️",
@@ -123,6 +147,8 @@ const Results = () => {
   const [roadmap, setRoadmap] = useState<any>(stateData.roadmap);
   const [loadingResults, setLoadingResults] = useState(!stateData.scores);
   const [benchmark, setBenchmark] = useState(() => getBenchmark(stateData.role));
+  const [sectorName, setSectorName] = useState<string | null>(null);
+  const SECTOR_AVERAGE = 3.0;
 
   const [radius, setRadius] = useState(45);
 
@@ -161,6 +187,23 @@ const Results = () => {
       }
     })();
   }, [role]);
+
+  // Fetch user profile to get sector (parent_industry)
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${uid}/profile`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.parent_industry) setSectorName(data.parent_industry);
+        }
+      } catch {
+        // Keep null
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     // If we already have scores from navigation state, no need to fetch
@@ -484,8 +527,13 @@ const Results = () => {
               <span className="text-base sm:text-lg font-bold text-foreground">
                 {benchmark.leading_quartile.toFixed(1)}
               </span>
-              <span className="text-[10px] sm:text-xs font-bold text-emerald-400 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5">
-                +{(benchmark.leading_quartile - scores.composite_score).toFixed(1)} ahead
+              <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= benchmark.leading_quartile
+                  ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                  : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
+                }`}>
+                {scores.composite_score >= benchmark.leading_quartile
+                  ? `+${(scores.composite_score - benchmark.leading_quartile).toFixed(1)} ahead`
+                  : `-${(benchmark.leading_quartile - scores.composite_score).toFixed(1)} gap`}
               </span>
             </div>
 
@@ -504,7 +552,7 @@ const Results = () => {
                 }`}>
                 {scores.composite_score >= benchmark.median
                   ? `+${(scores.composite_score - benchmark.median).toFixed(1)} ahead`
-                  : `+${(benchmark.median - scores.composite_score).toFixed(1)} ahead`}
+                  : `-${(benchmark.median - scores.composite_score).toFixed(1)} gap`}
               </span>
             </div>
 
@@ -526,6 +574,27 @@ const Results = () => {
                   : `-${(benchmark.lagging_quartile - scores.composite_score).toFixed(1)} gap`}
               </span>
             </div>
+
+            {/* GCC Sector Average */}
+            {sectorName && (
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-xl border border-border/50 bg-card/60 p-3 sm:p-4">
+                <div className="h-3 w-3 rounded-full bg-blue-500 shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-foreground flex-1 min-w-0">
+                  GCC Sector Avg — {sectorName}
+                </span>
+                <span className="text-base sm:text-lg font-bold text-foreground">
+                  {SECTOR_AVERAGE.toFixed(1)}
+                </span>
+                <span className={`text-[10px] sm:text-xs font-bold rounded-full border px-2 py-0.5 ${scores.composite_score >= SECTOR_AVERAGE
+                    ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                    : "text-blue-400 border-blue-500/30 bg-blue-500/10"
+                  }`}>
+                  {scores.composite_score >= SECTOR_AVERAGE
+                    ? `+${(scores.composite_score - SECTOR_AVERAGE).toFixed(1)} ahead`
+                    : `-${(SECTOR_AVERAGE - scores.composite_score).toFixed(1)} gap`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         {/* Industry trend insight */}
@@ -541,15 +610,47 @@ const Results = () => {
         {/* Contextual Callout */}
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 backdrop-blur-sm p-4 sm:p-6 mb-8">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            <span className="font-bold text-yellow-400">
-              {scores.composite_score < benchmark.median
-                ? `You're below the India GCC median`
-                : `You're above the India GCC median`}
-            </span>
-            {" "}at {scores.composite_score.toFixed(1)} vs {benchmark.median.toFixed(1)}.
-            {scores.composite_score < benchmark.median
-              ? ` This is common — over 60% of India GCCs are in AI Aware or early AI Embedded. The gap to median is ${(benchmark.median - scores.composite_score).toFixed(1)} points — achievable within 6–9 months with the right foundation investments.`
-              : ` You're ahead of the cohort median. Focus on scaling your strongest dimensions to move toward AI Native maturity.`}
+            {(() => {
+              const cs = scores.composite_score;
+              const med = benchmark.median;
+              const stage = getStage(cs);
+              const gap = Math.abs(cs - med);
+
+              if (cs < med) {
+                const months = estimateMonthsToReach(cs, med);
+                const timelineText = months
+                  ? months <= 6 ? `${months} months` : `${months} months`
+                  : "12+ months";
+                return (
+                  <>
+                    <span className="font-bold text-yellow-400">You're below the India GCC median</span>
+                    {" "}at {cs.toFixed(1)} vs {med.toFixed(1)}.
+                    {" "}You're currently in <span className="font-semibold text-primary">Stage {stage.stage} — {stage.label}</span>.
+                    {" "}The gap to median is {gap.toFixed(1)} points — achievable within {timelineText} with the right foundation investments.
+                  </>
+                );
+              } else if (cs < benchmark.leading_quartile) {
+                const months = estimateMonthsToReach(cs, benchmark.leading_quartile);
+                const timelineText = months ? `${months} months` : "12+ months";
+                return (
+                  <>
+                    <span className="font-bold text-emerald-400">You're above the India GCC median</span>
+                    {" "}at {cs.toFixed(1)} vs {med.toFixed(1)}.
+                    {" "}You're in <span className="font-semibold text-primary">Stage {stage.stage} — {stage.label}</span>.
+                    {" "}To reach the leading quartile ({benchmark.leading_quartile.toFixed(1)}), focus on scaling your strongest dimensions — estimated {timelineText} with targeted investments.
+                  </>
+                );
+              } else {
+                return (
+                  <>
+                    <span className="font-bold text-emerald-400">You're in the leading quartile</span>
+                    {" "}at {cs.toFixed(1)} vs median {med.toFixed(1)}.
+                    {" "}You're in <span className="font-semibold text-primary">Stage {stage.stage} — {stage.label}</span>.
+                    {" "}Focus on optimizing and scaling your AI capabilities to advance toward AI Realized maturity.
+                  </>
+                );
+              }
+            })()}
           </p>
         </div>
         {/* Guardrail explanation */}

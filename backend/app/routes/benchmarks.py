@@ -43,12 +43,10 @@ _DEFAULT = {"median": 2.9, "leading_quartile": 3.3, "lagging_quartile": 2.1}
 
 
 def _quantile(data: list[float], q: float) -> float:
-    """Return the q-th quantile using linear interpolation (same as Excel PERCENTILE.INC)."""
     return round(statistics.quantiles(data, n=100, method="inclusive")[int(q * 100) - 1], 2)
 
 
 def _is_dynamic_enabled() -> bool:
-    """Check if the admin has enabled dynamic benchmarks."""
     try:
         db = get_db()
         doc = db.collection("settings").document("benchmarks").get()

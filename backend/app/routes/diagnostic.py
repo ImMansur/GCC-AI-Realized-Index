@@ -110,9 +110,18 @@ class JourneyPhase(BaseModel):
     milestones: list[str]
 
 
+class DimensionTarget(BaseModel):
+    dimension_name: str
+    current_score: float
+    target_score: float
+
+
 class RoadmapData(BaseModel):
     target_score: float
     target_stage_name: str
+    roadmap_duration: Optional[str] = None
+    target_score_range: Optional[str] = None
+    dimension_targets: Optional[list[DimensionTarget]] = None
     actions: list[RoadmapAction]
     journey: list[JourneyPhase]
     projected_landing: str
@@ -185,6 +194,12 @@ def _get_median(role: str) -> float:
 
 def _build_pdf(req: DiagnosticRequest) -> bytes:
     """Build a professional EY-branded PDF report."""
+    from xml.sax.saxutils import escape as _xml_escape
+
+    def _esc(text: str) -> str:
+        """Escape &, <, > so ReportLab Paragraph XML doesn't break."""
+        return _xml_escape(str(text))
+
     buf = BytesIO()
     page_w, page_h = A4
     margin = 22 * mm
@@ -291,7 +306,7 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
 
     # ── Report title ──
     elements.append(Paragraph("GARIX Assessment Report", s["title"]))
-    elements.append(Paragraph("Full Diagnostic & AI Transformation Roadmap", s["subtitle"]))
+    elements.append(Paragraph("Full Diagnostic &amp; AI Transformation Roadmap", s["subtitle"]))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=LIGHT_GREY, spaceAfter=14))
 
     # ── Participant details card ──
@@ -299,10 +314,10 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
         [Paragraph("<b>PARTICIPANT DETAILS</b>",
                    ParagraphStyle("_inf", fontName="Helvetica-Bold", fontSize=8,
                                   textColor=GREY, leading=10)), "", "", ""],
-        [_info_cell("Name", s), Paragraph(req.user_name, s["bodyBold"]),
-         _info_cell("Persona", s), Paragraph(req.persona, s["bodyBold"])],
-        [_info_cell("Email", s), Paragraph(req.user_email, s["body"]),
-         _info_cell("Role", s), Paragraph(req.role, s["body"])],
+        [_info_cell("Name", s), Paragraph(_esc(req.user_name), s["bodyBold"]),
+         _info_cell("Persona", s), Paragraph(_esc(req.persona), s["bodyBold"])],
+        [_info_cell("Email", s), Paragraph(_esc(req.user_email), s["body"]),
+         _info_cell("Role", s), Paragraph(_esc(req.role), s["body"])],
     ]
     info_tbl = Table(info_rows, colWidths=[usable_w * 0.12, usable_w * 0.38,
                                             usable_w * 0.12, usable_w * 0.38])
@@ -382,7 +397,7 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
     for d in req.dimensions:
         dim_rows.append([
             Paragraph(str(d.dimension_id), s["small"]),
-            Paragraph(d.dimension_name, s["dimName"]),
+            Paragraph(_esc(d.dimension_name), s["dimName"]),
             Paragraph(f"<b>{d.score:.1f}</b>/5", s["body"]),
             _ScoreBar(d.score, width=80, height=8),
             Paragraph(f"{d.weight}×", s["body"]),
@@ -415,9 +430,9 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
     weakest = sorted_dims[0]
     strongest = sorted_dims[-1]
     elements.append(Paragraph(
-        f'<font color="#c62828">⬇ Lowest:</font> <b>{weakest.dimension_name}</b> ({weakest.score:.1f}/5)'
+        f'<font color="#c62828">⬇ Lowest:</font> <b>{_esc(weakest.dimension_name)}</b> ({weakest.score:.1f}/5)'
         f'&nbsp;&nbsp;&nbsp;&nbsp;'
-        f'<font color="#2e7d32">⬆ Highest:</font> <b>{strongest.dimension_name}</b> ({strongest.score:.1f}/5)',
+        f'<font color="#2e7d32">⬆ Highest:</font> <b>{_esc(strongest.dimension_name)}</b> ({strongest.score:.1f}/5)',
         ParagraphStyle("_hl", fontName="Helvetica", fontSize=9, textColor=HexColor("#444444"),
                        alignment=TA_CENTER, leading=13),
     ))
@@ -437,13 +452,13 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
                          else f'<font color="{ACCENT_AMBER.hexval()}">●</font>' if d.score >= 2.5
                          else f'<font color="{ACCENT_RED.hexval()}">●</font>')
             elements.append(Paragraph(
-                f'{score_tag}  <b>{d.dimension_name}</b>  '
+                f'{score_tag}  <b>{_esc(d.dimension_name)}</b>  '
                 f'<font color="#999999" size="9">(Score: {d.score:.1f}/5)</font>',
                 s["bodyBold"],
             ))
             for insight in dim_insights:
                 elements.append(Paragraph(
-                    f'<font color="#999999">—</font>&nbsp;&nbsp;{insight}',
+                    f'<font color="#999999">—</font>&nbsp;&nbsp;{_esc(insight)}',
                     ParagraphStyle("_ins", fontName="Helvetica", fontSize=9,
                                    textColor=HexColor("#444444"), leading=13,
                                    leftIndent=14, spaceBefore=1, spaceAfter=1),
@@ -459,20 +474,27 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
         elements.append(_section_heading("AI Transformation Roadmap"))
 
         # Target card
+        target_range_display = _esc(rm.target_score_range) if rm.target_score_range else f"{rm.target_score:.1f}"
+        duration_display = _esc(rm.roadmap_duration) if rm.roadmap_duration else "6 Months"
         target_inner = [[
             Paragraph(
-                f'<font size="9" color="#999999">TARGET SCORE</font><br/>'
-                f'<font size="22" color="#ffe600"><b>{rm.target_score:.1f}</b></font>'
+                f'<font size="9" color="#999999">TARGET RANGE</font><br/>'
+                f'<font size="22" color="#ffe600"><b>{target_range_display}</b></font>'
                 f'<font size="10" color="#999999"> / 5.0</font>',
                 ParagraphStyle("_tgt", fontName="Helvetica-Bold", fontSize=22,
                                textColor=EY_YELLOW, alignment=TA_CENTER, leading=28)),
             Paragraph(
                 f'<font size="9" color="#999999">TARGET STAGE</font><br/>'
-                f'<font size="14" color="#ffffff"><b>{rm.target_stage_name}</b></font>',
+                f'<font size="14" color="#ffffff"><b>{_esc(rm.target_stage_name)}</b></font>',
                 ParagraphStyle("_tgs", fontName="Helvetica-Bold", fontSize=14,
                                textColor=WHITE, alignment=TA_CENTER, leading=20)),
+            Paragraph(
+                f'<font size="9" color="#999999">DURATION</font><br/>'
+                f'<font size="14" color="#ffffff"><b>{duration_display}</b></font>',
+                ParagraphStyle("_tgd", fontName="Helvetica-Bold", fontSize=14,
+                               textColor=WHITE, alignment=TA_CENTER, leading=20)),
         ]]
-        target_tbl = Table(target_inner, colWidths=[usable_w * 0.5, usable_w * 0.5])
+        target_tbl = Table(target_inner, colWidths=[usable_w * 0.34, usable_w * 0.33, usable_w * 0.33])
         target_tbl.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), EY_DARK),
             ("TOPPADDING", (0, 0), (-1, -1), 14),
@@ -480,15 +502,67 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("LINEBEFORE", (1, 0), (1, 0), 0.5, HexColor("#444444")),
+            ("LINEBEFORE", (2, 0), (2, 0), 0.5, HexColor("#444444")),
             ("ROUNDEDCORNERS", [6, 6, 6, 6]),
         ]))
         elements.append(target_tbl)
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph(rm.projected_landing,
+        elements.append(Paragraph(_esc(rm.projected_landing),
                                   ParagraphStyle("_proj", fontName="Helvetica-Oblique",
                                                  fontSize=9, textColor=GREY,
                                                  alignment=TA_CENTER, leading=13)))
         elements.append(Spacer(1, 16))
+
+        # ── Dimension-Level Goals ──
+        if rm.dimension_targets:
+            elements.append(Paragraph(
+                '<font color="#1a1a2e"><b>Dimension-Level Goals</b></font>',
+                ParagraphStyle("_dgH", fontName="Helvetica-Bold", fontSize=12,
+                               textColor=EY_DARK, spaceBefore=4, spaceAfter=8)))
+
+            goal_header = [
+                Paragraph("<b>Dimension</b>", ParagraphStyle("_gTh", fontName="Helvetica-Bold",
+                           fontSize=9, textColor=WHITE)),
+                Paragraph("<b>Current</b>", ParagraphStyle("_gTh2", fontName="Helvetica-Bold",
+                           fontSize=9, textColor=WHITE, alignment=TA_CENTER)),
+                Paragraph("<b>Target</b>", ParagraphStyle("_gTh3", fontName="Helvetica-Bold",
+                           fontSize=9, textColor=WHITE, alignment=TA_CENTER)),
+                Paragraph("<b>Gap</b>", ParagraphStyle("_gTh4", fontName="Helvetica-Bold",
+                           fontSize=9, textColor=WHITE, alignment=TA_CENTER)),
+            ]
+            goal_rows = [goal_header]
+            for dt in rm.dimension_targets:
+                gap = dt.target_score - dt.current_score
+                gap_color = ACCENT_GREEN.hexval() if gap <= 0.5 else (
+                    ACCENT_AMBER.hexval() if gap <= 1.0 else ACCENT_RED.hexval())
+                goal_rows.append([
+                    Paragraph(_esc(dt.dimension_name), s["dimName"]),
+                    Paragraph(f"{dt.current_score:.1f}", ParagraphStyle("_gc", fontName="Helvetica",
+                              fontSize=10, textColor=HexColor("#333333"), alignment=TA_CENTER)),
+                    Paragraph(f"<b>{dt.target_score:.1f}</b>", ParagraphStyle("_gt", fontName="Helvetica-Bold",
+                              fontSize=10, textColor=ACCENT_GREEN, alignment=TA_CENTER)),
+                    Paragraph(f'<font color="{gap_color}">+{gap:.1f}</font>',
+                              ParagraphStyle("_gg", fontName="Helvetica-Bold",
+                              fontSize=10, textColor=HexColor(gap_color), alignment=TA_CENTER)),
+                ])
+
+            goal_tbl = Table(goal_rows, colWidths=[usable_w * 0.46, usable_w * 0.18,
+                                                    usable_w * 0.18, usable_w * 0.18])
+            goal_tbl.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), EY_DARK),
+                ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#e0e0e0")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, BG_CREAM]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+            ]))
+            elements.append(goal_tbl)
+            elements.append(Spacer(1, 16))
 
         # ── Immediate Actions ──
         elements.append(Paragraph(
@@ -506,13 +580,13 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
                     ParagraphStyle("_aN", fontName="Helvetica-Bold", fontSize=16,
                                    textColor=EY_YELLOW, alignment=TA_CENTER)),
                 Paragraph(
-                    f'<b>{action.title}</b><br/>'
-                    f'<font size="8" color="#999999">{action.timeline.upper()}</font>',
+                    f'<b>{_esc(action.title)}</b><br/>'
+                    f'<font size="8" color="#999999">{_esc(action.timeline).upper()}</font>',
                     ParagraphStyle("_aT", fontName="Helvetica-Bold", fontSize=11,
                                    textColor=EY_DARK, leading=15)),
             ], [
                 "",
-                Paragraph(action.description,
+                Paragraph(_esc(action.description),
                           ParagraphStyle("_aD", fontName="Helvetica", fontSize=9,
                                          textColor=HexColor("#555555"), leading=13)),
             ]]
@@ -534,9 +608,9 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
 
         elements.append(Spacer(1, 10))
 
-        # ── 6-Month Journey ──
+        # ── Transformation Journey ──
         elements.append(Paragraph(
-            '<font color="#1a1a2e"><b>6-Month Transformation Journey</b></font>',
+            f'<font color="#1a1a2e"><b>{_esc(duration_display)} Transformation Journey</b></font>',
             ParagraphStyle("_jH", fontName="Helvetica-Bold", fontSize=12,
                            textColor=EY_DARK, spaceBefore=4, spaceAfter=8)))
 
@@ -550,12 +624,12 @@ def _build_pdf(req: DiagnosticRequest) -> bytes:
         ]
         journey_rows = [journey_header]
         for phase in rm.journey:
-            milestones_text = "<br/>".join(f"→ {m}" for m in phase.milestones)
+            milestones_text = "<br/>".join(f"→ {_esc(m)}" for m in phase.milestones)
             journey_rows.append([
-                Paragraph(f'<b>Month {phase.months}</b>',
+                Paragraph(f'<b>{_esc(phase.months)}</b>',
                           ParagraphStyle("_jM", fontName="Helvetica-Bold", fontSize=9,
                                          textColor=EY_DARK, leading=13)),
-                Paragraph(phase.phase_title, s["body"]),
+                Paragraph(_esc(phase.phase_title), s["body"]),
                 Paragraph(milestones_text,
                           ParagraphStyle("_jMi", fontName="Helvetica", fontSize=9,
                                          textColor=HexColor("#444444"), leading=13)),

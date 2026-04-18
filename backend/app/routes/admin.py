@@ -8,6 +8,9 @@ from typing import Optional
 from firebase_admin import auth as firebase_auth
 
 from app.firebase import get_db
+from app.routes.diagnostic import (
+    DiagnosticRequest, DimScore, RoadmapData, AnswerDetail, _build_pdf,
+)
 
 
 # Admin email allowed to access the dashboard
@@ -202,7 +205,7 @@ async def get_all_reports(token: str = Depends(verify_admin_token)):
 
 @router.get("/admin/reports/{report_id}/download")
 async def download_report(report_id: str, token: str = Depends(verify_admin_token)):
-    """Download a diagnostic PDF from Azure Blob Storage."""
+    """Generate and download a diagnostic PDF on the fly from stored report data."""
     try:
         db = get_db()
         doc = db.collection("diagnostic_reports").document(report_id).get()
@@ -210,19 +213,102 @@ async def download_report(report_id: str, token: str = Depends(verify_admin_toke
             raise HTTPException(status_code=404, detail="Report not found")
 
         data = doc.to_dict()
-        blob_name = data.get("blob_name")
-        if not blob_name:
-            raise HTTPException(status_code=404, detail="PDF not available for this report")
+        user_name = data.get("user_name", "Participant")
+        user_email = data.get("user_email", "")
+        persona = data.get("persona", "")
+        role = data.get("role", "")
+        composite_score = data.get("composite_score", 0)
 
-        container_name = os.getenv("BLOB_CONTAINER_NAME", "gcc-ai")
-        blob_service = _get_blob_service()
-        container_client = blob_service.get_container_client(container_name)
-        blob_client = container_client.get_blob_client(blob_name)
+        scores = data.get("scores", {})
+        dims = [DimScore(**d) for d in scores.get("dimensions", [])]
 
-        download = blob_client.download_blob()
-        pdf_bytes = download.readall()
+        roadmap_data = None
+        raw_roadmap = data.get("roadmap")
+        if raw_roadmap:
+            roadmap_data = RoadmapData(**raw_roadmap) if isinstance(raw_roadmap, dict) else raw_roadmap
 
-        safe_name = data.get("user_name", "report").replace(" ", "_")
+        answers = None
+        raw_answers = data.get("answers")
+        if raw_answers:
+            answers = [AnswerDetail(**a) if isinstance(a, dict) else a for a in raw_answers]
+
+        req = DiagnosticRequest(
+            user_name=user_name,
+            user_email=user_email,
+            persona=persona,
+            role=role,
+            composite_score=composite_score,
+            dimensions=dims,
+            insights=data.get("insights"),
+            roadmap=roadmap_data,
+            answers=answers,
+        )
+
+        pdf_bytes = _build_pdf(req)
+
+        safe_name = user_name.replace(" ", "_")
+        return StreamingResponse(
+            BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="GARIX_Report_{safe_name}.pdf"'
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/surveys/{survey_id}/download")
+async def download_survey_report(survey_id: str, token: str = Depends(verify_admin_token)):
+    """Generate and download a PDF report for any survey on the fly."""
+    try:
+        db = get_db()
+        doc = db.collection("surveys").document(survey_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Survey not found")
+
+        data = doc.to_dict()
+        scores = data.get("scores", {})
+        uid = data.get("uid", "")
+
+        # Resolve user name/email
+        user_name = "Participant"
+        user_email = ""
+        if uid:
+            user_doc = db.collection("users").document(uid).get()
+            if user_doc.exists:
+                u = user_doc.to_dict()
+                user_name = u.get("name", "Participant")
+                user_email = u.get("email", "")
+
+        # Build DiagnosticRequest from survey data
+        dims = [DimScore(**d) for d in scores.get("dimensions", [])]
+        roadmap_data = None
+        raw_roadmap = data.get("roadmap")
+        if raw_roadmap:
+            roadmap_data = RoadmapData(**raw_roadmap) if isinstance(raw_roadmap, dict) else raw_roadmap
+        answers = None
+        raw_answers = data.get("answers")
+        if raw_answers:
+            answers = [AnswerDetail(**a) if isinstance(a, dict) else a for a in raw_answers]
+
+        req = DiagnosticRequest(
+            user_name=user_name,
+            user_email=user_email,
+            persona=data.get("persona", ""),
+            role=data.get("role", ""),
+            composite_score=scores.get("composite_score", 0),
+            dimensions=dims,
+            insights=data.get("insights"),
+            roadmap=roadmap_data,
+            answers=answers,
+        )
+
+        pdf_bytes = _build_pdf(req)
+
+        safe_name = user_name.replace(" ", "_")
         return StreamingResponse(
             BytesIO(pdf_bytes),
             media_type="application/pdf",

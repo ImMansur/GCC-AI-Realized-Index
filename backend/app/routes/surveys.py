@@ -8,8 +8,7 @@ from datetime import datetime, timezone
 
 from app.firebase import get_db
 from app.routes.questions import get_client, get_deployment
-from app.routes.roadmap import RoadmapRequest, DimensionScoreItem, generate_roadmap_data
-from app.routes.diagnostic import send_survey_completion_emails
+from app.routes.diagnostic import send_survey_completion_emails, _get_stage
 
 router = APIRouter()
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -235,32 +234,17 @@ Generate 3 concise bullet points per dimension describing what this maturity sta
 
 
 @router.post("/survey/submit")
-async def submit_survey(submission: SurveySubmission, background_tasks: BackgroundTasks):
-    """Save completed survey responses and computed scores to Firestore."""
+async def submit_survey(submission: SurveySubmission):
+    """Save completed survey responses and computed scores to Firestore.
+    
+    NOTE: Email is NOT sent here. It is sent after the user configures the
+    roadmap duration and generates a proper roadmap (via /survey/send-report).
+    """
     try:
         db = get_db()
         scores = compute_scores(submission.answers)
 
-        # Run insights + roadmap generation in parallel (both are OpenAI calls)
-        insights_future = _executor.submit(
-            generate_insights, submission.persona, submission.role, scores
-        )
-        roadmap_future = _executor.submit(
-            generate_roadmap_data,
-            persona=submission.persona,
-            role=submission.role,
-            composite_score=scores["composite_score"],
-            dimensions=scores["dimensions"],
-            uid=submission.uid,
-        )
-
-        insights = insights_future.result()
-
-        roadmap = None
-        try:
-            roadmap = roadmap_future.result()
-        except Exception:
-            pass  # roadmap generation is best-effort
+        insights = generate_insights(submission.persona, submission.role, scores)
 
         survey_data = {
             "uid": submission.uid,
@@ -269,7 +253,7 @@ async def submit_survey(submission: SurveySubmission, background_tasks: Backgrou
             "answers": [a.model_dump() for a in submission.answers],
             "scores": scores,
             "insights": insights,
-            "roadmap": roadmap,
+            "roadmap": None,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -284,49 +268,67 @@ async def submit_survey(submission: SurveySubmission, background_tasks: Backgrou
         # Also save a top-level copy for admin queries
         db.collection("surveys").add(survey_data)
 
-        # Send emails in background — user doesn't wait for this
-        answers_dump = [a.model_dump() for a in submission.answers]
-        background_tasks.add_task(
-            _send_completion_emails,
-            db=db,
-            uid=submission.uid,
-            persona=submission.persona,
-            role=submission.role,
-            scores=scores,
-            insights=insights,
-            roadmap=roadmap,
-            answers=answers_dump,
-        )
-
-        return {"status": "ok", "survey_id": doc_ref.id, "scores": scores, "insights": insights, "roadmap": roadmap}
+        return {"status": "ok", "survey_id": doc_ref.id, "scores": scores, "insights": insights}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _send_completion_emails(
-    db, uid: str, persona: str, role: str, scores: dict,
-    insights: dict, roadmap: dict | None, answers: list,
-):
-    """Background task: fetch user info and send emails."""
+class SendReportRequest(BaseModel):
+    uid: str
+    persona: str
+    role: str
+    scores: dict
+    insights: dict | None = None
+    roadmap: dict | None = None
+    answers: list | None = None
+
+
+@router.post("/survey/send-report")
+async def send_report(req: SendReportRequest, background_tasks: BackgroundTasks):
+    """Send the completion email with roadmap after the user has configured it."""
     try:
-        user_doc = db.collection("users").document(uid).get()
+        db = get_db()
+        user_doc = db.collection("users").document(req.uid).get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
         user_name = user_data.get("name", "Participant")
         user_email = user_data.get("email", "")
 
-        if user_email:
-            send_survey_completion_emails(
-                user_name=user_name,
-                user_email=user_email,
-                persona=persona,
-                role=role,
-                composite_score=scores["composite_score"],
-                dimensions=scores["dimensions"],
-                insights=insights,
-                roadmap=roadmap,
-                answers=answers,
-            )
-    except Exception:
-        pass  # email is best-effort
+        if not user_email:
+            raise HTTPException(status_code=400, detail="User email not found")
+
+        composite_score = req.scores.get("composite_score", 0)
+
+        # Save full report so it shows in the admin Reports tab with all details
+        db.collection("diagnostic_reports").add({
+            "uid": req.uid,
+            "user_name": user_name,
+            "user_email": user_email,
+            "persona": req.persona,
+            "role": req.role,
+            "composite_score": composite_score,
+            "stage": _get_stage(composite_score),
+            "scores": req.scores,
+            "insights": req.insights,
+            "roadmap": req.roadmap,
+            "answers": req.answers,
+            "requested_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+        background_tasks.add_task(
+            send_survey_completion_emails,
+            user_name=user_name,
+            user_email=user_email,
+            persona=req.persona,
+            role=req.role,
+            composite_score=composite_score,
+            dimensions=req.scores.get("dimensions", []),
+            insights=req.insights,
+            roadmap=req.roadmap,
+            answers=req.answers,
+        )
+
+        return {"status": "ok", "message": "Report email queued"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

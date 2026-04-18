@@ -42,6 +42,21 @@ async def save_user_profile(profile: UserProfile):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/users/{uid}/profile")
+async def get_user_profile(uid: str):
+    """Return the user's profile document."""
+    try:
+        db = get_db()
+        doc = db.collection("users").document(uid).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="User not found")
+        return doc.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/users/{uid}/surveys")
 async def get_user_surveys(uid: str):
     """Get all surveys submitted by a user, ordered by most recent first."""
@@ -82,5 +97,29 @@ async def get_latest_survey(uid: str):
         data = docs[0].to_dict()
         data["survey_id"] = docs[0].id
         return {"survey": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/users/{uid}/surveys/latest/roadmap")
+async def save_roadmap_to_survey(uid: str, body: dict):
+    """Save or update the roadmap on the user's most recent survey."""
+    try:
+        db = get_db()
+        surveys_ref = (
+            db.collection("users")
+            .document(uid)
+            .collection("surveys")
+            .order_by("submitted_at", direction="DESCENDING")
+            .limit(1)
+        )
+        docs = list(surveys_ref.stream())
+        if not docs:
+            raise HTTPException(status_code=404, detail="No survey found for user")
+        doc_ref = docs[0].reference
+        doc_ref.update({"roadmap": body.get("roadmap")})
+        return {"status": "ok"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
