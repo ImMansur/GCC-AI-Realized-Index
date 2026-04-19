@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Home, Loader2, Send, Settings2, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, Loader2, Send, Settings2, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase";
@@ -68,64 +68,27 @@ function getStageNumber(score: number): number {
   return 5;
 }
 
-// ---- MATRIX LOGIC (Matches Backend) ----
-const getAvailableTargets = (cs: number) => {
-  let targets =[];
-  
-  if (cs < 2.0) targets =[
-    { label: "2.0 – 2.5", months: 3 },
-    { label: "2.6 – 3.0", months: 6 },
-    { label: "3.1 – 3.5", months: 9 },
-    { label: "3.6 – 4.0", months: 12 }
-  ];
-  else if (cs < 3.0) targets =[
-    { label: "2.5 – 3.0", months: 3 },
-    { label: "3.1 – 3.5", months: 6 },
-    { label: "3.6 – 4.0", months: 9 },
-    { label: "4.1 – 4.5", months: 12 }
-  ];
-  else if (cs < 4.0) targets =[
-    { label: "3.5 – 4.0", months: 3 },
-    { label: "4.1 – 4.5", months: 6 },
-    { label: "4.6 – 4.8", months: 9 },
-    { label: "4.6 – 5.0", months: 12 }
-  ];
-  else if (cs < 4.5) targets =[
-    { label: "4.1 – 4.5", months: 3 },
-    { label: "4.6 – 4.8", months: 6 },
-    { label: "4.7 – 5.0", months: 9 },
-    { label: "5.0", months: 12 }
-  ];
-  else targets =[
-    { label: "4.6 – 5.0", months: 6 },
-    { label: "5.0", months: 9 },
-    { label: "5.0 (maintain)", months: 12 }
-  ];
+// ---- HEADROOM-BASED FORMULA (Matches Backend v2) ----
+function computeTargetRange(cs: number, durationMonths: number): { min: number; max: number } {
+  const headroom = 5.0 - cs;
+  const timeFactor = durationMonths / 12;
+  const captureConservative = 0.45 * Math.pow(timeFactor, 0.65);
+  const captureOptimistic = 0.65 * Math.pow(timeFactor, 0.55);
 
-  // Fix: Format score exactly as it appears in UI (e.g., 3.98 becomes 4.0)
-  const visualScore = Number(cs.toFixed(1));
+  let targetMin = Math.round(Math.min(5.0, cs + headroom * captureConservative) * 10) / 10;
+  let targetMax = Math.round(Math.min(5.0, cs + headroom * captureOptimistic) * 10) / 10;
 
-  // Filter out any target range where the maximum achievable score 
-  // is less than or equal to what the user already has.
-  targets = targets.filter((t) => {
-    // Extract all numbers from the target label (e.g., "3.5 - 4.0" ->[3.5, 4.0])
-    const numbers = t.label.match(/\d+\.\d+/g);
-    if (!numbers) return true; // Safety fallback
-    
-    // Find the highest number in that target range
-    const maxTargetValue = Math.max(...numbers.map(Number));
-    
-    // Keep it ONLY if it improves their score, or if they are already maxed out
-    return maxTargetValue > visualScore || t.label.includes("maintain");
-  });
-
-  // Edge case fallback (prevents empty dropdowns)
-  if (targets.length === 0) {
-    targets =[{ label: "5.0 (maintain)", months: 6 }];
+  // Guardrail 2: Minimum improvement of +0.1
+  const roundedScore = Math.round(cs * 10) / 10;
+  if (targetMin <= roundedScore) {
+    targetMin = Math.min(5.0, roundedScore + 0.1);
+  }
+  if (targetMax < targetMin) {
+    targetMax = targetMin;
   }
 
-  return targets;
-};
+  return { min: targetMin, max: targetMax };
+}
 
 const TIMELINE_COLORS: Record<string, string> = {
   "30-day action": "border-primary text-primary",
@@ -154,24 +117,45 @@ const RoadmapPage = () => {
 
   // State Management
   const [isConfiguring, setIsConfiguring] = useState(!preGeneratedRoadmap);
-  const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>("");
+  const [selectedTargetIdx, setSelectedTargetIdx] = useState<number>(0);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(preGeneratedRoadmap || null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
-  // Initialize Configurator Default Values
+  // Available duration options (filter out blocked ones)
+  const availableMonths = scores
+    ? [3, 6, 9, 12].filter((d) => {
+        const headroom = 5.0 - scores.composite_score;
+        // Guardrail 3: Block 3-month for high scores
+        if (headroom <= 0.5 && d === 3) return false;
+        return true;
+      })
+    : [3, 6, 9, 12];
+
+  // Build target options from available durations
+  const targetOptions = scores
+    ? availableMonths.map((m) => {
+        const range = computeTargetRange(scores.composite_score, m);
+        const label = range.min === range.max
+          ? `${range.min.toFixed(1)}`
+          : `${range.min.toFixed(1)} – ${range.max.toFixed(1)}`;
+        return { months: m, range, label, stage: getStageLabel(range.max) };
+      })
+    : [];
+
+  // Initialize default selection (prefer 6 months option)
   useEffect(() => {
-    if (scores && isConfiguring) {
-      const targets = getAvailableTargets(scores.composite_score);
-      const defaultTarget = targets.find(t => t.months === 6) || targets[0];
-      setSelectedTargetLabel(defaultTarget.label);
+    if (scores && isConfiguring && targetOptions.length > 0) {
+      const defaultIdx = targetOptions.findIndex((o) => o.months === 6);
+      setSelectedTargetIdx(defaultIdx >= 0 ? defaultIdx : 0);
     }
   }, [scores, isConfiguring]);
 
-  // Derived Values automatically calculated based on selection
-  const targetsMatrix = scores ? getAvailableTargets(scores.composite_score) :[];
-  const activeTargetObj = targetsMatrix.find(t => t.label === selectedTargetLabel) || targetsMatrix[0];
-  const activeDurationMonths = activeTargetObj?.months || 6;
+  // Derived values from selected target
+  const activeOption = targetOptions[selectedTargetIdx] || targetOptions[0];
+  const computedRange = activeOption?.range || { min: 0, max: 0 };
+  const targetRangeLabel = activeOption?.label || "—";
+  const activeDurationMonths = activeOption?.months || 6;
 
   // Generate Action
   const handleGenerateRoadmap = async () => {
@@ -288,35 +272,35 @@ const RoadmapPage = () => {
           </div>
           <p className="text-sm text-muted-foreground mb-6">
             Your current baseline score is <span className="font-bold text-foreground">{scores.composite_score.toFixed(1)}</span>. 
-            Select your target ambition to see the required timeline and generate your personalized plan.
+            Select your target score and we'll build a personalized roadmap to get you there.
           </p>
 
           <div className="space-y-6">
             {/* Target Selection Dropdown */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Target Score Ambition
+                Target Score
               </label>
               <select 
-                value={selectedTargetLabel}
-                onChange={(e) => setSelectedTargetLabel(e.target.value)}
+                value={selectedTargetIdx}
+                onChange={(e) => setSelectedTargetIdx(Number(e.target.value))}
                 className="w-full bg-background border border-border rounded-lg p-3 text-sm text-foreground font-medium focus:ring-1 focus:ring-primary outline-none"
               >
-                {targetsMatrix.map((t) => (
-                  <option key={t.label} value={t.label}>Target Score: {t.label}</option>
+                {targetOptions.map((opt, idx) => (
+                  <option key={idx} value={idx}>{opt.label}</option>
                 ))}
               </select>
             </div>
 
-            {/* Dynamic Duration Indicator (Replaces the 2nd Dropdown) */}
+            {/* Dynamic Target Score Indicator */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Estimated Timeline Required
+                Estimated Timeline
               </label>
               <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-primary">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-sm font-medium">To reach {activeTargetObj?.label}</span>
+                  <Target className="h-4 w-4" />
+                  <span className="text-sm font-medium">Target: {targetRangeLabel}</span>
                 </div>
                 <span className="text-xl font-bold text-primary">
                   {activeDurationMonths} Months
@@ -348,7 +332,7 @@ const RoadmapPage = () => {
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <div className="text-center">
             <p className="text-lg font-semibold text-foreground mb-2">Building your AI transformation roadmap…</p>
-            <p className="text-sm text-muted-foreground">Aligning {activeDurationMonths} months of actions for {role} in {persona}</p>
+            <p className="text-sm text-muted-foreground">Targeting score {targetRangeLabel} for {role} in {persona}</p>
           </div>
         </div>
       </div>

@@ -9,27 +9,44 @@ from app.routes.questions import get_client, get_deployment
 
 router = APIRouter()
 
-# ── Target Score & Roadmap Duration Lookup Table ──
+# ── Headroom-Based Diminishing Returns Model (v2) ──
 def _get_target_mapping(composite_score: float, duration_months: int) -> dict:
-    """Return target_score_min, target_score_max, and duration based strictly on lookup table."""
+    """
+    Calculate target_min/target_max using the headroom-based formula
+    with diminishing returns on both score and time.
+
+    Formula:
+        headroom = 5.0 - current_score
+        time_factor = duration_months / 12
+        capture_conservative = 0.45 * time_factor ** 0.65
+        capture_optimistic   = 0.65 * time_factor ** 0.55
+        target_min = current_score + headroom * capture_conservative
+        target_max = current_score + headroom * capture_optimistic
+    """
     if duration_months not in [3, 6, 9, 12]:
         raise ValueError("Duration must be 3, 6, 9, or 12 months.")
 
-    # Matrix: mapping[score_tier][duration_months] = (target_min, target_max)
-    if composite_score < 2.0:
-        matrix = {3: (2.0, 2.5), 6: (2.6, 3.0), 9: (3.1, 3.5), 12: (3.6, 4.0)}
-    elif composite_score < 3.0:
-        matrix = {3: (2.5, 3.0), 6: (3.1, 3.5), 9: (3.6, 4.0), 12: (4.1, 4.5)}
-    elif composite_score < 4.0:
-        matrix = {3: (3.5, 4.0), 6: (4.1, 4.5), 9: (4.6, 4.8), 12: (4.6, 5.0)}
-    elif composite_score < 4.5:
-        matrix = {3: (4.1, 4.5), 6: (4.6, 4.8), 9: (4.7, 5.0), 12: (5.0, 5.0)}
-    else:  # 4.5 - 5.0
-        if duration_months == 3:
-            raise ValueError("A 3-month roadmap is not applicable for scores 4.5 and above.")
-        matrix = {6: (4.6, 5.0), 9: (5.0, 5.0), 12: (5.0, 5.0)}
+    headroom = 5.0 - composite_score
 
-    target_min, target_max = matrix[duration_months]
+    # Guardrail 3: Block 3-month roadmaps for high scores (headroom ≤ 0.5)
+    if headroom <= 0.5 and duration_months == 3:
+        raise ValueError("3-month roadmap not applicable for scores ≥ 4.5")
+
+    time_factor = duration_months / 12  # yields 0.25, 0.50, 0.75, or 1.00
+
+    capture_conservative = 0.45 * (time_factor ** 0.65)
+    capture_optimistic = 0.65 * (time_factor ** 0.55)
+
+    # Guardrail 1: Hard ceiling at 5.0, round to 1 decimal
+    target_min = round(min(5.0, composite_score + headroom * capture_conservative), 1)
+    target_max = round(min(5.0, composite_score + headroom * capture_optimistic), 1)
+
+    # Guardrail 2: Minimum improvement of +0.1
+    rounded_score = round(composite_score, 1)
+    if target_min <= rounded_score:
+        target_min = min(5.0, rounded_score + 0.1)
+    if target_max < target_min:
+        target_max = target_min
 
     return {
         "target_min": target_min,

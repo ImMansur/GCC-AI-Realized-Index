@@ -94,26 +94,20 @@ function getBenchmark(role?: string) {
   return DEFAULT_BENCHMARK;
 }
 
-/** Estimate the shortest duration (months) to reach a target score using the roadmap matrix. */
+/** Estimate the shortest duration (months) to reach a target score using the headroom formula. */
 function estimateMonthsToReach(currentScore: number, targetScore: number): number | null {
   const durations = [3, 6, 9, 12] as const;
-  let matrix: Record<number, [number, number]>;
-
-  if (currentScore < 2.0)
-    matrix = { 3: [2.0, 2.5], 6: [2.6, 3.0], 9: [3.1, 3.5], 12: [3.6, 4.0] };
-  else if (currentScore < 3.0)
-    matrix = { 3: [2.5, 3.0], 6: [3.1, 3.5], 9: [3.6, 4.0], 12: [4.1, 4.5] };
-  else if (currentScore < 4.0)
-    matrix = { 3: [3.5, 4.0], 6: [4.1, 4.5], 9: [4.6, 4.8], 12: [4.6, 5.0] };
-  else if (currentScore < 4.5)
-    matrix = { 3: [4.1, 4.5], 6: [4.6, 4.8], 9: [4.7, 5.0], 12: [5.0, 5.0] };
-  else
-    matrix = { 6: [4.6, 5.0], 9: [5.0, 5.0], 12: [5.0, 5.0] };
+  const headroom = 5.0 - currentScore;
 
   for (const d of durations) {
-    const range = matrix[d];
-    if (!range) continue;
-    if (range[1] >= targetScore) return d;
+    // Skip 3-month for high scores
+    if (headroom <= 0.5 && d === 3) continue;
+
+    const timeFactor = d / 12;
+    const captureOptimistic = 0.65 * Math.pow(timeFactor, 0.55);
+    const targetMax = Math.round(Math.min(5.0, currentScore + headroom * captureOptimistic) * 10) / 10;
+
+    if (targetMax >= targetScore) return d;
   }
   return null; // beyond 12 months
 }
