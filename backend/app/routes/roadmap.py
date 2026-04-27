@@ -9,19 +9,24 @@ from app.routes.questions import get_client, get_deployment
 
 router = APIRouter()
 
+def _get_stage_name(score: float) -> str:
+    """Map a numeric score to its corresponding business stage."""
+    if score < 2.0:
+        return "AI Aware"
+    elif score < 3.0:
+        return "AI Embedded"
+    elif score < 4.0:
+        return "AI Scaled"
+    elif score < 4.5:
+        return "AI Native"
+    else:
+        return "AI Realized"
+
 # ── Headroom-Based Diminishing Returns Model (v2) ──
 def _get_target_mapping(composite_score: float, duration_months: int) -> dict:
     """
     Calculate target_min/target_max using the headroom-based formula
     with diminishing returns on both score and time.
-
-    Formula:
-        headroom = 5.0 - current_score
-        time_factor = duration_months / 12
-        capture_conservative = 0.45 * time_factor ** 0.65
-        capture_optimistic   = 0.65 * time_factor ** 0.55
-        target_min = current_score + headroom * capture_conservative
-        target_max = current_score + headroom * capture_optimistic
     """
     if duration_months not in [3, 6, 9, 12]:
         raise ValueError("Duration must be 3, 6, 9, or 12 months.")
@@ -32,7 +37,7 @@ def _get_target_mapping(composite_score: float, duration_months: int) -> dict:
     if headroom <= 0.5 and duration_months == 3:
         raise ValueError("3-month roadmap not applicable for scores ≥ 4.5")
 
-    time_factor = duration_months / 12  # yields 0.25, 0.50, 0.75, or 1.00
+    time_factor = duration_months / 12
 
     capture_conservative = 0.45 * (time_factor ** 0.65)
     capture_optimistic = 0.65 * (time_factor ** 0.55)
@@ -48,9 +53,13 @@ def _get_target_mapping(composite_score: float, duration_months: int) -> dict:
     if target_max < target_min:
         target_max = target_min
 
+    # Calculate the Target State based on target_max
+    target_state = _get_stage_name(target_max)
+
     return {
         "target_min": target_min,
         "target_max": target_max,
+        "target_state": target_state,
         "duration": f"{duration_months} months",
         "duration_months": duration_months
     }
@@ -61,18 +70,20 @@ def _build_roadmap_prompt(mapping: dict) -> str:
     duration = mapping["duration"]
     target_min = mapping["target_min"]
     target_max = mapping["target_max"]
+    target_state = mapping["target_state"]
     dm = mapping["duration_months"]
 
     if target_min >= 5.0:
         target_instruction = (
             "The organization is already at a high maturity level. "
             "Focus on maintaining excellence and continuous improvement. "
-            'Set target_score to 5.0 and target_stage_name to "Maintain & Improve".'
+            'Set target_score to 5.0 and target_stage_name to "AI Realized (Maintain)".'
         )
     else:
         target_instruction = (
-            f"The target score MUST be between {target_min:.1f} and {target_max:.1f}. "
-            f"Pick a specific target_score within this range."
+            f"The target score MUST be between {target_min:.1f} and {target_max:.1f}, "
+            f"which corresponds to the '{target_state}' stage of AI maturity. "
+            f"Ensure the roadmap specifically elevates the organization's capabilities to align with a '{target_state}' business state."
         )
 
     # Dynamically scale the journey layout based on EXACT duration
@@ -190,7 +201,7 @@ class RoadmapRequest(BaseModel):
     persona: str
     role: str
     composite_score: float
-    duration_months: int  # <-- Added required parameter
+    duration_months: int
     dimensions: list[DimensionScoreItem]
     company: str = ""
     uid: Optional[str] = None
@@ -216,11 +227,7 @@ def generate_roadmap_data(
     )
 
     cs = composite_score
-    if cs < 2: current_stage = "Stage 1 — AI Aware"
-    elif cs < 3: current_stage = "Stage 2 — AI Embedded"
-    elif cs < 4: current_stage = "Stage 3 — AI Scaled"
-    elif cs < 4.5: current_stage = "Stage 4 — AI Native"
-    else: current_stage = "Stage 5 — AI Realized"
+    current_stage = _get_stage_name(cs)
 
     sorted_dims = sorted(dim_items, key=lambda d: d.score)
     weakest = sorted_dims[:3]
@@ -235,6 +242,7 @@ Persona: {persona}
 Role: {role}
 Current Score: {composite_score}/5 ({current_stage})
 Target Score Range: {mapping['target_min']:.1f} – {mapping['target_max']:.1f}
+Target State: {mapping['target_state']}
 Roadmap Duration: {mapping['duration']}
 
 Dimension Scores:
@@ -264,8 +272,9 @@ Generate roadmap."""
     roadmap = json.loads(content)
 
     roadmap["roadmap_duration"] = mapping["duration"]
+    roadmap["target_state"] = mapping["target_state"]
     
-    # --- FIX: Prevent 5.0-5.0 duplication ---
+    # Prevent 5.0-5.0 duplication
     t_min = mapping["target_min"]
     t_max = mapping["target_max"]
     
@@ -302,7 +311,6 @@ async def generate_roadmap(req: RoadmapRequest):
         return {"status": "ok", "roadmap": roadmap}
         
     except ValueError as ve:
-        # Handles logic errors like "duration must be 3, 6, 9, 12"
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
